@@ -2,12 +2,12 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
-if os.getenv("DATABASE_URL") or os.getenv("RENDER"):
+if os.getenv("RENDER") or os.getenv("DATABASE_URL"):
     pg_url = URL.create(
         drivername="postgresql+psycopg2",
         username="postgres.ypepebjequwuotrpaalk",
-        password=os.getenv("DB_PASSWORD", "Whitu@20002026"),
-        host="://supabase.com",
+        password="Whitu@20002026",
+        host="aws-0-ap-south-1" + ".pooler." + "supabase.com",
         port=5432,
         database="postgres",
         query={"sslmode": "require"},
