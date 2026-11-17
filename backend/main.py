@@ -1,16 +1,19 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date, timedelta
 from decimal import Decimal
+import asyncio
+import base64
 import calendar
 import json
-
-from database import engine
-from customer_models import CustomerCreate, CustomerUpdate, PaymentCreate
-from delivery_models import DeliverySaveRequest
+import os
+import subprocess
+import tempfile
+import urllib.parse
+import webbrowser
 
 try:
     import pyautogui
@@ -18,6 +21,10 @@ try:
 except Exception:
     pyautogui = None
     pyperclip = None
+
+from database import engine
+from customer_models import CustomerCreate, CustomerUpdate, PaymentCreate
+from delivery_models import DeliverySaveRequest
 
 
 
