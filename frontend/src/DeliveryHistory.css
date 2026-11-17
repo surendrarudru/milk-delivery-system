@@ -1,0 +1,371 @@
+.delivery-history {
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.delivery-history h3 {
+  margin-top: 0;
+  margin-bottom: 18px;
+  color: #222;
+}
+
+.dh-customer-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 14px;
+  margin-bottom: 20px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.dh-customer-info strong {
+  color: #222;
+}
+
+.dh-customer-info span {
+  color: #666;
+}
+
+.dh-error {
+  padding: 12px;
+  margin: 12px 0;
+  color: #b42318;
+  background: #fee4e2;
+  border-radius: 6px;
+}
+
+/* Calendar */
+
+.dh-calendar-container {
+  max-width: 650px;
+  padding: 18px;
+  margin-bottom: 25px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+}
+
+.dh-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.dh-calendar-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.dh-calendar-header button {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 6px;
+  background: #f0f0f0;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.dh-calendar-header button:hover {
+  background: #ddd;
+}
+
+.dh-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.dh-weekday {
+  padding: 8px 2px;
+  text-align: center;
+  font-weight: 600;
+  color: #555;
+  font-size: 13px;
+}
+
+.dh-calendar-day,
+.dh-empty-day {
+  min-height: 43px;
+  border-radius: 7px;
+}
+
+.dh-calendar-day {
+  border: 2px solid transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  color: #222;
+}
+
+.dh-calendar-day:hover {
+  filter: brightness(0.94);
+}
+
+/* Calendar colors */
+
+.dh-green {
+  background: #b7e4c7;
+}
+
+.dh-red {
+  background: #f4aaaa;
+}
+
+.dh-yellow {
+  background: #ffe69a;
+}
+
+.dh-grey {
+  background: #e0e0e0;
+  color: #777;
+}
+
+/* Selected date: blue outline, original color preserved */
+
+.dh-calendar-day.dh-selected {
+  border: 3px solid #1769ff;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.dh-loading {
+  grid-column: 1 / -1;
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+/* Legend */
+
+.dh-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.dh-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.dh-legend i {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+}
+
+.dh-green-box {
+  background: #b7e4c7;
+}
+
+.dh-red-box {
+  background: #f4aaaa;
+}
+
+.dh-yellow-box {
+  background: #ffe69a;
+}
+
+.dh-grey-box {
+  background: #e0e0e0;
+}
+
+/* Selected date details */
+
+.dh-selected-details {
+  margin-top: 25px;
+}
+
+.dh-selected-details > h3 {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.dh-session-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dh-session-card {
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 9px;
+}
+
+.dh-session-card h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 17px;
+}
+
+.dh-no-record {
+  color: #888;
+  font-size: 14px;
+}
+
+.dh-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.dh-detail-row span {
+  color: #666;
+}
+
+.dh-detail-row strong {
+  text-align: right;
+  color: #222;
+}
+
+.dh-total-row {
+  margin-top: 5px;
+  border-top: 1px solid #ccc;
+  border-bottom: none;
+  font-size: 16px;
+}
+
+.dh-total-row strong {
+  color: #087443;
+}
+
+.dh-notes {
+  margin-top: 12px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+/* Mobile responsive */
+
+@media (max-width: 650px) {
+  .delivery-history {
+    padding: 10px;
+  }
+
+  .dh-calendar-container {
+    padding: 10px;
+  }
+
+  .dh-calendar-grid {
+    gap: 4px;
+  }
+
+  .dh-calendar-day,
+  .dh-empty-day {
+    min-height: 36px;
+  }
+
+  .dh-session-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dh-legend {
+    gap: 10px;
+  }
+
+  .dh-detail-row {
+    font-size: 13px;
+  }
+}
+/* FIX: Delivery Edit Modal */
+.dh-edit-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+.dh-edit-form {
+  width: 100% !important;
+  max-width: 450px !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  padding: 25px !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.3) !important;
+}
+
+.dh-edit-form h3 {
+  text-align: center !important;
+  margin: 0 0 15px !important;
+  font-size: 20px !important;
+}
+
+.dh-edit-form label {
+  display: block !important;
+  font-weight: 600 !important;
+  margin-top: 5px !important;
+}
+
+.dh-edit-form input:not([type="checkbox"]),
+.dh-edit-form select,
+.dh-edit-form textarea {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 11px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 7px !important;
+  font-size: 14px !important;
+}
+
+.dh-edit-form .dh-edit-checkbox {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.dh-edit-form .dh-edit-checkbox input {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.dh-edit-actions {
+  display: flex !important;
+  gap: 12px !important;
+  margin-top: 15px !important;
+}
+
+.dh-edit-actions button {
+  flex: 1 !important;
+  padding: 12px !important;
+  border: none !important;
+  border-radius: 7px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+}
+
+.dh-edit-actions button[type="submit"] {
+  background: #168568 !important;
+  color: white !important;
+}
+
+.dh-edit-actions button[type="button"] {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}

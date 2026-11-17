@@ -1,0 +1,212 @@
+.monthly-billing-page {
+  padding: 20px;
+}
+
+.billing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  gap: 15px;
+}
+
+.billing-header h1 {
+  font-size: 28px;
+  margin-bottom: 5px;
+}
+
+.billing-header p {
+  color: #64748b;
+}
+
+.billing-status {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.billing-calendar-section,
+.selected-date-section,
+.bill-preview-section {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  margin-bottom: 22px;
+  border: 1px solid #e2e8f0;
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.calendar-toolbar h2 {
+  text-align: center;
+  font-size: 23px;
+  margin-bottom: 8px;
+}
+
+.calendar-toolbar input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.calendar-toolbar button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 7px;
+  background: #0f766e;
+  color: white;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  padding: 12px 2px;
+  font-weight: bold;
+  color: #475569;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.calendar-day {
+  min-height: 75px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px;
+  font-size: 16px;
+}
+
+.calendar-day:hover {
+  background: #f0fdfa;
+  border-color: #0f766e;
+}
+
+.selected-day {
+  border: 2px solid #0f766e;
+  background: #ccfbf1;
+  font-weight: bold;
+}
+
+.calendar-empty {
+  min-height: 75px;
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 22px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.selected-date-section h3 {
+  margin-bottom: 10px;
+}
+
+.selected-date-section p {
+  color: #64748b;
+  margin-bottom: 15px;
+}
+
+.preview-button,
+.generate-bill-button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 7px;
+  background: #0f766e;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.preview-button:disabled,
+.generate-bill-button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.billing-message {
+  padding: 14px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.bill-preview-section h2 {
+  margin-bottom: 12px;
+}
+
+.billing-table-wrapper {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.billing-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.billing-table th,
+.billing-table td {
+  padding: 13px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.billing-table th {
+  background: #f1f5f9;
+}
+
+.generate-bill-button {
+  margin-top: 20px;
+}
+
+.bill-preview-section small {
+  display: block;
+  margin-top: 10px;
+  color: #64748b;
+}
+
+@media (max-width: 650px) {
+  .monthly-billing-page {
+    padding: 10px;
+  }
+
+  .billing-calendar-section {
+    padding: 12px;
+  }
+
+  .calendar-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .calendar-day {
+    min-height: 55px;
+    padding: 6px;
+  }
+
+  .calendar-grid {
+    gap: 4px;
+  }
+}
