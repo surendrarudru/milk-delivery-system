@@ -3694,12 +3694,6 @@ def get_customer_bill_history(customer_id: int):
             detail=str(e)
         )
 
-import asyncio
-import urllib.parse
-import webbrowser
-import pyautogui
-from fastapi import BackgroundTasks
-
 AUTO_QUEUE_RUNNING = {}
 
 async def run_whatsapp_queue(session_type: str, customers: list):
