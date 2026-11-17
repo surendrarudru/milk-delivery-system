@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import './CustomerMaster.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://' + window.location.hostname + ':8000'
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
+const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://onrender.com')
 const STORAGE_KEY = 'milk_manager_veenapusa_ads_sent'
 const POSTER_STORAGE_KEY = 'milk_manager_template_posters_v2'
 
