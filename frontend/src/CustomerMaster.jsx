@@ -5,7 +5,7 @@ import CustomerLedger from './CustomerLedger'
 import './CustomerMaster.css'
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
-const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://onrender.com')
+const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://milk-delivery-api-bn26.onrender.com')
 
 
 function CustomerMaster() {
