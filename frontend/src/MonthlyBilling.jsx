@@ -114,6 +114,31 @@ export default function MonthlyBilling() {
     drawRoundedRect(ctx, 674, pillsY, 290, 46, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
     ctx.fillText('తేదీ : ' + String(totalDays).padStart(2, '0') + '-' + teMonthLabel, 819, pillsY + 29)
 
+      // Live Month & Year + Month-End Report Date
+  const monthLabel = `${TELUGU_MONTHS[month - 1]} ${year}`
+  const reportDateStr = `${String(totalDays).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`
+
+  // Green Section Title Banner with Live Selected Month
+  ctx.fillStyle = '#0f3d28'
+  roundRect(ctx, 36, bannerY, W - 72, 46, 10)
+  ctx.fill()
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 21px "Noto Sans Telugu", "Nirmala UI", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.fillText(`📅 ${monthLabel} — నెలవారీ పాల సరఫరా నివేదిక`, W / 2, bannerY + 30)
+
+  // Customer Name (Left) & Month-End Report Date (Right)
+  const infoY = bannerY + 76
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#1e293b'
+  ctx.font = 'bold 21px "Noto Sans Telugu", "Nirmala UI", sans-serif'
+  ctx.fillText(`కస్టమర్ : ${cust.CustomerName} గారు`, 42, infoY)
+
+  ctx.textAlign = 'right'
+  ctx.fillStyle = '#0f5132'
+  ctx.font = 'bold 19px "Noto Sans Telugu", "Nirmala UI", sans-serif'
+  ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, W - 42, infoY)
+
     const gridTop = 437, colW = 928 / 7, firstDay = new Date(year, month - 1, 1).getDay()
     const numRows = Math.ceil((firstDay + totalDays) / 7), rowH = numRows === 6 ? 70 : 82
     drawRoundedRect(ctx, 36, gridTop, 928, 44 + numRows * rowH, 12, 'rgba(255,253,247,0.86)', '#9ca3af')
