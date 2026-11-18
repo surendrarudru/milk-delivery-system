@@ -45,17 +45,17 @@ export default function MonthlyBilling() {
   const [msgError, setMsgError] = useState(false)
   const [preview, setPreview] = useState(null)
   const [customNotes, setCustomNotes] = useState('')
-  const yearList = [2025, 2026, 2027]
 
 
   const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
   const canBill = billingAllowed || testUnlock
-  const yearList =
+  const yearList = [2025, 2026, 2027]
 
-  function showNotice(text, isErr = false) {
-    setMsg(text)
-    setMsgError(isErr)
-  }
+function showNotice(text, isErr = false) {
+  setMsg(text)
+  setMsgError(isErr)
+}
+
   async function loadSummary() {
     setLoading(true)
     try {
