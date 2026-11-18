@@ -46,7 +46,7 @@ export default function MonthlyBilling() {
   const [customNotes, setCustomNotes] = useState('')
 
   const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
-  const yearOptions = [2026]
+  const yearOptions = [2025,2026,2027]
 
   function showNotice(text, isErr = false) {
     setMsg(text)
