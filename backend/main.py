@@ -783,3 +783,15 @@ def finalize_all_monthly_bills(year: int, month: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+def check_billing_window(year: int, month: int, force: bool = False):
+    if force:
+        return
+    today = date.today()
+    last_day = calendar.monthrange(year, month)[1]
+    window_start = date(year, month, last_day - 1)
+    month_end = date(year, month, last_day)
+    if today < window_start:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Billing for {month:02d}/{year} opens only in the last 2 days of the month ({window_start.strftime('%d-%m-%Y')} to {month_end.strftime('%d-%m-%Y')})."
+        )

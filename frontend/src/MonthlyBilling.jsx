@@ -37,6 +37,7 @@ export default function MonthlyBilling() {
   const [year, setYear] = useState(now.getFullYear())
   const [rows, setRows] = useState([])
   const [billingAllowed, setBillingAllowed] = useState(true)
+  const [testUnlock, setTestUnlock] = useState(false)
   const [windowInfo, setWindowInfo] = useState({ start: '', end: '' })
   const [loading, setLoading] = useState(false)
   const [working, setWorking] = useState(false)
@@ -44,15 +45,17 @@ export default function MonthlyBilling() {
   const [msgError, setMsgError] = useState(false)
   const [preview, setPreview] = useState(null)
   const [customNotes, setCustomNotes] = useState('')
+  const yearList = [2025, 2026, 2027]
+
 
   const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
+  const canBill = billingAllowed || testUnlock
   const yearList =
 
   function showNotice(text, isErr = false) {
     setMsg(text)
     setMsgError(isErr)
   }
-
   async function loadSummary() {
     setLoading(true)
     try {
@@ -78,15 +81,16 @@ export default function MonthlyBilling() {
   }, [month, year])
 
   async function generateBill(custId = null) {
-    if (!billingAllowed) {
+    if (!canBill) {
       return showNotice(`${teMonthLabel} బిల్లింగ్ నెలాఖరు 2 రోజులలో మాత్రమే (${windowInfo.start} నుండి ${windowInfo.end} వరకు) ఓపెన్ అవుతుంది.`, true)
     }
     setWorking(true)
     setMsg('')
     try {
-      const url = custId
-        ? `${API_URL}/billing/generate/${custId}/${year}/${month}`
-        : `${API_URL}/billing/generate-all/${year}/${month}`
+      const url =
+        (custId
+          ? `${API_URL}/billing/generate/${custId}/${year}/${month}`
+          : `${API_URL}/billing/generate-all/${year}/${month}`) + `?force=${testUnlock}`
       const res = await fetch(url, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.detail || 'Generate failed')
@@ -100,16 +104,17 @@ export default function MonthlyBilling() {
   }
 
   async function finalizeBill(billId = null) {
-    if (!billingAllowed) {
+    if (!canBill) {
       return showNotice(`${teMonthLabel} బిల్లింగ్ నెలాఖరు 2 రోజులలో మాత్రమే (${windowInfo.start} నుండి ${windowInfo.end} వరకు) ఓపెన్ అవుతుంది.`, true)
     }
     if (!billId && !window.confirm(`${teMonthLabel} — Generated బిల్లులన్నింటినీ Finalize చేయాలా?`)) return
     setWorking(true)
     setMsg('')
     try {
-      const url = billId
-        ? `${API_URL}/billing/finalize/${billId}`
-        : `${API_URL}/billing/finalize-all/${year}/${month}`
+      const url =
+        (billId
+          ? `${API_URL}/billing/finalize/${billId}`
+          : `${API_URL}/billing/finalize-all/${year}/${month}`) + `?force=${testUnlock}`
       const res = await fetch(url, { method: 'PUT' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.detail || 'Finalize failed')
@@ -204,7 +209,6 @@ export default function MonthlyBilling() {
         ctx.fillText('లేవు', cx + colW / 2, cy + rowH - 17)
       }
     }
-
     const milkRate = Number(cust.MilkRate || 100)
     const milkQty = Number(calTotalQty > 0 ? calTotalQty : milkRate > 0 ? Number(bill.MilkTotal || 0) / milkRate : 0)
     const totalDue = Number(bill.TotalAmountDue || 0)
@@ -289,8 +293,8 @@ export default function MonthlyBilling() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', background: '#fff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
         <div>
           <h2 style={{ margin: 0 }}>Customer-wise Monthly Bills — {teMonthLabel}</h2>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: billingAllowed ? '#15803d' : '#b45309', fontWeight: 600 }}>
-            {billingAllowed
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: canBill ? '#15803d' : '#b45309', fontWeight: 600 }}>
+            {canBill
               ? `✅ Billing Open (${windowInfo.start} to ${windowInfo.end}) — Report Date: ${windowInfo.end}`
               : `⏳ Billing opens only in last 2 days of month (${windowInfo.start} to ${windowInfo.end})`}
           </p>
@@ -304,16 +308,21 @@ export default function MonthlyBilling() {
           </select>
 
           <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
-            {[2025, 2026, 2027].map(y => (
+            {yearList.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
 
-          <button type="button" onClick={() => generateBill(null)} disabled={working || loading || !billingAllowed} style={{ padding: '10px 16px', background: billingAllowed ? '#0f766e' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: billingAllowed ? 'pointer' : 'not-allowed' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: testUnlock ? '#fef3c7' : '#f8fafc', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+            <input type="checkbox" checked={testUnlock} onChange={e => setTestUnlock(e.target.checked)} />
+            🔓 Test Unlock
+          </label>
+
+          <button type="button" onClick={() => generateBill(null)} disabled={working || loading || !canBill} style={{ padding: '10px 16px', background: canBill ? '#0f766e' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: canBill ? 'pointer' : 'not-allowed' }}>
             ⚡ Generate All Bills
           </button>
 
-          <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading || !billingAllowed} style={{ padding: '10px 16px', background: billingAllowed ? '#1e3a8a' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: billingAllowed ? 'pointer' : 'not-allowed' }}>
+          <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading || !canBill} style={{ padding: '10px 16px', background: canBill ? '#1e3a8a' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: canBill ? 'pointer' : 'not-allowed' }}>
             🔒 Finalize All Bills
           </button>
         </div>
@@ -362,12 +371,12 @@ export default function MonthlyBilling() {
                   </td>
                   <td style={{ padding: '12px' }}>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {!b && billingAllowed && (
+                      {!b && canBill && (
                         <button type="button" onClick={() => generateBill(c.CustomerID)} disabled={working} style={{ padding: '6px 10px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                           Generate
                         </button>
                       )}
-                      {b && !isFinal && billingAllowed && (
+                      {b && !isFinal && canBill && (
                         <button type="button" onClick={() => finalizeBill(b.BillID)} disabled={working} style={{ padding: '6px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                           Finalize
                         </button>
@@ -419,4 +428,3 @@ export default function MonthlyBilling() {
     </div>
   )
 }
-
