@@ -46,6 +46,7 @@ export default function MonthlyBilling() {
   const [customNotes, setCustomNotes] = useState('')
 
   const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
+  const yearOptions = [2026]
 
   function showNotice(text, isErr = false) {
     setMsg(text)
@@ -89,12 +90,10 @@ export default function MonthlyBilling() {
     if (targets.length === 0) {
       return showNotice(`${teMonthLabel} కోసం అన్ని బిల్లులు ఇప్పటికే Generate అయ్యాయి!`)
     }
-
     setWorking(true)
     setMsg('')
     let okCount = 0
     let failMsg = ''
-
     try {
       for (let i = 0; i < targets.length; i++) {
         const id = targets[i]
@@ -109,11 +108,8 @@ export default function MonthlyBilling() {
         }
       }
       await loadAllBills()
-      if (okCount > 0) {
-        showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Generate అయ్యాయి!`)
-      } else if (failMsg) {
-        showNotice(failMsg, true)
-      }
+      if (okCount > 0) showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Generate అయ్యాయి!`)
+      else if (failMsg) showNotice(failMsg, true)
     } catch (e) {
       showNotice(e.message, true)
     } finally {
@@ -126,17 +122,14 @@ export default function MonthlyBilling() {
     const targets = billId
       ? [billId]
       : Object.values(billsMap).filter(b => b && b.BillStatus === 'Generated').map(b => b.BillID)
-
     if (targets.length === 0) {
       return showNotice(`${teMonthLabel} లో Finalize చేయడానికి 'Generated' బిల్లులు లేవు (ముందు Generate నొక్కండి).`, true)
     }
     if (!billId && !window.confirm(`${teMonthLabel} — ${targets.length} బిల్లులను Finalize చేయాలా?`)) return
-
     setWorking(true)
     setMsg('')
     let okCount = 0
     let failMsg = ''
-
     try {
       for (let i = 0; i < targets.length; i++) {
         const id = targets[i]
@@ -151,11 +144,8 @@ export default function MonthlyBilling() {
         }
       }
       await loadAllBills()
-      if (okCount > 0) {
-        showNotice(billId ? 'Bill finalized!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Finalize అయ్యాయి!`)
-      } else if (failMsg) {
-        showNotice(failMsg, true)
-      }
+      if (okCount > 0) showNotice(billId ? 'Bill finalized!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Finalize అయ్యాయి!`)
+      else if (failMsg) showNotice(failMsg, true)
     } catch (e) {
       showNotice(e.message, true)
     } finally {
@@ -163,7 +153,6 @@ export default function MonthlyBilling() {
       setProgressText('')
     }
   }
-
   async function buildBillCanvas(cust, bill, noteText = '') {
     const [bRes, cRes, tpl] = await Promise.all([
       fetch(`${API_URL}/billing/bill/${bill.BillID}`).catch(() => ({ ok: false })),
@@ -183,14 +172,12 @@ export default function MonthlyBilling() {
     ctx.fillRect(0, 0, 1000, 1350)
     if (tpl) ctx.drawImage(tpl, 0, 0, 1000, 1350)
 
-    // Green Title Banner with Live Selected Month & Year
     drawRoundedRect(ctx, 80, 305, 840, 60, 30, '#1b4d24')
     ctx.fillStyle = '#fff'
     ctx.font = '700 27px "Noto Sans Telugu", sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(`📅 ${teMonthLabel} — నెలవారీ పాల సరఫరా నివేదిక`, 500, 344)
 
-    // Month-End Report Date & Customer Strip
     const totalDays = new Date(year, month, 0).getDate()
     const reportDateStr = `${String(totalDays).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`
     const pillsY = 379
@@ -208,7 +195,6 @@ export default function MonthlyBilling() {
     drawRoundedRect(ctx, 682, pillsY, 282, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
     ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, 823, pillsY + 29)
 
-    // Calendar Grid
     const gridTop = 437
     const colW = 928 / 7
     const firstDay = new Date(year, month - 1, 1).getDay()
@@ -264,13 +250,11 @@ export default function MonthlyBilling() {
     const cardsY = gridTop + 44 + numRows * rowH + 16
     const cardW = (928 - 32) / 3
 
-    const summaryCards = [
+    ;[
       ['🥛 మొత్తం పాలు', `${Number(milkQty.toFixed(2))} లీటర్లు`, '#144522'],
       ['లీటరు ధర', `₹ ${milkRate.toFixed(2)}`, '#144522'],
       ['చెల్లించవలసిన మొత్తం', `₹ ${totalDue.toFixed(2)}`, '#b45309']
-    ]
-
-    summaryCards.forEach(([lbl, val, col], idx) => {
+    ].forEach(([lbl, val, col], idx) => {
       const x = 36 + idx * (cardW + 16)
       drawRoundedRect(ctx, x, cardsY, cardW, 88, 14, 'rgba(255,253,247,0.92)', '#6b7280')
       ctx.fillStyle = '#1f2937'
@@ -315,29 +299,28 @@ export default function MonthlyBilling() {
 
   async function downloadAndShare(cust, bill, openWa = true, existing = null) {
     try {
-    const p = existing || (await buildBillCanvas(cust, bill, customNotes))
-    const link = document.createElement('a')
-    link.download = `${cust.CustomerName}_${teMonthLabel}.png`
-    link.href = p.dataUrl
-    link.click()
-    try {
-      const blob = await new Promise(r => p.canvas.toBlob(r, 'image/png'))
-      if (blob && navigator.clipboard?.write) {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-      }
-    } catch {}
-    if (!openWa) return showNotice('Bill PNG downloaded & copied!')
+      const p = existing || (await buildBillCanvas(cust, bill, customNotes))
+      const link = document.createElement('a')
+      link.download = `${cust.CustomerName}_${teMonthLabel}.png`
+      link.href = p.dataUrl
+      link.click()
+      try {
+        const blob = await new Promise(r => p.canvas.toBlob(r, 'image/png'))
+        if (blob && navigator.clipboard?.write) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        }
+      } catch {}
+      if (!openWa) return showNotice('Bill PNG downloaded & copied!')
 
-    const clean = String(cust.MobileNumber || '').replace(/\D/g, '')
-    if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
-    const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(p.full.VeenaPusaTotal).toFixed(2)}` : ''
-    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(p.full.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
-    window.open(`https://whatsapp.com{clean.slice(-10)}&text=${encodeURIComponent(text)}`, '_blank')
-    } catch (e) { showNotice('Share error: ' + e.message, true) }
+      const clean = String(cust.MobileNumber || '').replace(/\D/g, '')
+      if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
+      const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(p.full.VeenaPusaTotal).toFixed(2)}` : ''
+      const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(p.full.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
+      window.open(`https://whatsapp.com{clean.slice(-10)}&text=${encodeURIComponent(text)}`, '_blank')
+    } catch (e) {
+      showNotice('Share error: ' + e.message, true)
+    }
   }
-
-  const yearOptions = [2025, 2026, 2027]
-
   return (
     <div style={{ width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', background: '#fff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -354,7 +337,7 @@ export default function MonthlyBilling() {
           </select>
 
           <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
-            {yearOptions.map(y => (
+            {[2025, 2026, 2027].map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
@@ -427,7 +410,6 @@ export default function MonthlyBilling() {
                             <button type="button" onClick={() => openPreview(c, b)} style={{ padding: '6px 10px', background: '#475569', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                               🖼️ Telugu Bill Preview
                             </button>
-                            <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                             <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                               💬 WhatsApp
                             </button>
