@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import './MonthlyBilling.css'
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
-const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://milk-delivery-api-bn26.onrender.com')
+const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://onrender.com')
 const TE_MONTHS = ['జనవరి', 'ఫిబ్రవరి', 'మార్చి', 'ఏప్రిల్', 'మే', 'జూన్', 'జూలై', 'ఆగస్టు', 'సెప్టెంబర్', 'అక్టోబర్', 'నవంబర్', 'డిసెంబర్']
 const TE_DAYS = ['ఆది', 'సోమ', 'మంగళ', 'బుధ', 'గురు', 'శుక్ర', 'శని']
 
@@ -17,11 +17,17 @@ function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke = null) {
 }
 
 function loadTemplateImg() {
+  const candidates = ['/bill-template.png', '/bill%20template.png', '/bill-template.png.png', '/bill-template.jpg']
   return new Promise(resolve => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = '/bill-template.png'
+    let i = 0
+    const tryNext = () => {
+      if (i >= candidates.length) return resolve(null)
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => { i += 1; tryNext() }
+      img.src = candidates[i]
+    }
+    tryNext()
   })
 }
 
@@ -33,181 +39,303 @@ export default function MonthlyBilling() {
   const [billsMap, setBillsMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [working, setWorking] = useState(false)
+  const [progressText, setProgressText] = useState('')
   const [msg, setMsg] = useState('')
+  const [msgError, setMsgError] = useState(false)
   const [preview, setPreview] = useState(null)
   const [customNotes, setCustomNotes] = useState('')
 
-  const teMonthLabel = TE_MONTHS[month - 1] + ' ' + year
+  const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
 
-  async function loadAllBills() {
-    setLoading(true); setMsg('')
-    try {
-      const cRes = await fetch(API_URL + '/customers')
-      const activeCusts = (await cRes.json()).filter(c => c.IsActive)
-      setCustomers(activeCusts)
-      const entries = await Promise.all(activeCusts.map(async c => {
-        try {
-          const r = await fetch(API_URL + '/customers/' + c.CustomerID + '/bills')
-          if (!r.ok) return [c.CustomerID, null]
-          const d = await r.json()
-          return [c.CustomerID, (d.Bills || []).find(b => Number(b.BillYear) === year && Number(b.BillMonth) === month) || null]
-        } catch { return [c.CustomerID, null] }
-      }))
-      setBillsMap(Object.fromEntries(entries))
-    } catch (e) { setMsg('Load failed: ' + e.message) } finally { setLoading(false) }
+  function showNotice(text, isErr = false) {
+    setMsg(text)
+    setMsgError(isErr)
   }
 
-  useEffect(() => { loadAllBills() }, [month, year])
+  async function loadAllBills() {
+    setLoading(true)
+    try {
+      const cRes = await fetch(`${API_URL}/customers`)
+      if (!cRes.ok) throw new Error('Failed to load customers')
+      const activeCusts = (await cRes.json()).filter(c => c.IsActive)
+      setCustomers(activeCusts)
+
+      const entries = await Promise.all(activeCusts.map(async c => {
+        try {
+          const r = await fetch(`${API_URL}/customers/${c.CustomerID}/bills`)
+          if (!r.ok) return [c.CustomerID, null]
+          const d = await r.json()
+          const found = (d.Bills || []).find(b => Number(b.BillYear) === year && Number(b.BillMonth) === month) || null
+          return [c.CustomerID, found]
+        } catch {
+          return [c.CustomerID, null]
+        }
+      }))
+      setBillsMap(Object.fromEntries(entries))
+    } catch (e) {
+      showNotice('Load failed: ' + e.message, true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    setMsg('')
+    loadAllBills()
+  }, [month, year])
 
   async function generateBill(custId = null) {
-    setWorking(true); setMsg('')
+    const targets = custId ? [custId] : customers.filter(c => !billsMap[c.CustomerID]).map(c => c.CustomerID)
+    if (targets.length === 0) {
+      return showNotice(`${teMonthLabel} కోసం అన్ని బిల్లులు ఇప్పటికే Generate అయ్యాయి!`)
+    }
+
+    setWorking(true)
+    setMsg('')
+    let okCount = 0
+    let failMsg = ''
+
     try {
-      const targets = custId ? [custId] : customers.filter(c => !billsMap[c.CustomerID]).map(c => c.CustomerID)
-      for (const id of targets) {
-        const res = await fetch(API_URL + '/billing/generate/' + id + '/' + year + '/' + month, { method: 'POST' })
-        if (!res.ok && custId) throw new Error((await res.json()).detail || 'Generate failed')
+      for (let i = 0; i < targets.length; i++) {
+        const id = targets[i]
+        setProgressText(`Generating ${i + 1} / ${targets.length}...`)
+        const res = await fetch(`${API_URL}/billing/generate/${id}/${year}/${month}`, { method: 'POST' })
+        if (res.ok) {
+          okCount += 1
+        } else {
+          const errData = await res.json().catch(() => ({}))
+          failMsg = errData.detail || 'Generate failed'
+          if (custId) throw new Error(failMsg)
+        }
       }
       await loadAllBills()
-      setMsg(custId ? 'Bill generated successfully!' : 'Generated ' + targets.length + ' bills for ' + teMonthLabel + '!')
-    } catch (e) { setMsg(e.message) } finally { setWorking(false) }
+      if (okCount > 0) {
+        showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Generate అయ్యాయి!`)
+      } else if (failMsg) {
+        showNotice(failMsg, true)
+      }
+    } catch (e) {
+      showNotice(e.message, true)
+    } finally {
+      setWorking(false)
+      setProgressText('')
+    }
   }
 
   async function finalizeBill(billId = null) {
-    if (!billId && !window.confirm(teMonthLabel + ' అన్ని బిల్లులను Finalize చేయాలా?')) return
-    setWorking(true); setMsg('')
+    const targets = billId
+      ? [billId]
+      : Object.values(billsMap).filter(b => b && b.BillStatus === 'Generated').map(b => b.BillID)
+
+    if (targets.length === 0) {
+      return showNotice(`${teMonthLabel} లో Finalize చేయడానికి 'Generated' బిల్లులు లేవు (ముందు Generate నొక్కండి).`, true)
+    }
+    if (!billId && !window.confirm(`${teMonthLabel} — ${targets.length} బిల్లులను Finalize చేయాలా?`)) return
+
+    setWorking(true)
+    setMsg('')
+    let okCount = 0
+    let failMsg = ''
+
     try {
-      const targets = billId ? [billId] : Object.values(billsMap).filter(b => b && b.BillStatus === 'Generated').map(b => b.BillID)
-      for (const id of targets) {
-        const res = await fetch(API_URL + '/billing/finalize/' + id, { method: 'PUT' })
-        if (!res.ok && billId) throw new Error('Finalize failed (ensure all month sessions are completed)')
+      for (let i = 0; i < targets.length; i++) {
+        const id = targets[i]
+        setProgressText(`Finalizing ${i + 1} / ${targets.length}...`)
+        const res = await fetch(`${API_URL}/billing/finalize/${id}`, { method: 'PUT' })
+        if (res.ok) {
+          okCount += 1
+        } else {
+          const errData = await res.json().catch(() => ({}))
+          failMsg = errData.detail || 'Finalize failed'
+          if (billId) throw new Error(failMsg)
+        }
       }
       await loadAllBills()
-      setMsg(billId ? 'Bill finalized!' : 'Finalized ' + targets.length + ' bills!')
-    } catch (e) { setMsg(e.message) } finally { setWorking(false) }
+      if (okCount > 0) {
+        showNotice(billId ? 'Bill finalized!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Finalize అయ్యాయి!`)
+      } else if (failMsg) {
+        showNotice(failMsg, true)
+      }
+    } catch (e) {
+      showNotice(e.message, true)
+    } finally {
+      setWorking(false)
+      setProgressText('')
+    }
   }
+
   async function buildBillCanvas(cust, bill, noteText = '') {
     const [bRes, cRes, tpl] = await Promise.all([
-      fetch(API_URL + '/billing/bill/' + bill.BillID),
-      fetch(API_URL + '/customers/' + cust.CustomerID + '/delivery-calendar/' + year + '/' + month),
+      fetch(`${API_URL}/billing/bill/${bill.BillID}`).catch(() => ({ ok: false })),
+      fetch(`${API_URL}/customers/${cust.CustomerID}/delivery-calendar/${year}/${month}`).catch(() => ({ ok: false })),
       loadTemplateImg()
     ])
     const full = bRes.ok ? await bRes.json() : bill
     const cal = cRes.ok ? await cRes.json() : { Days: [] }
     const daysList = Array.isArray(cal.Days) ? cal.Days : []
 
-    const canvas = document.createElement('canvas'); canvas.width = 1000; canvas.height = 1350
+    const canvas = document.createElement('canvas')
+    canvas.width = 1000
+    canvas.height = 1350
     const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#fbf5e6'; ctx.fillRect(0, 0, 1000, 1350)
+
+    ctx.fillStyle = '#fbf5e6'
+    ctx.fillRect(0, 0, 1000, 1350)
     if (tpl) ctx.drawImage(tpl, 0, 0, 1000, 1350)
 
-    drawRoundedRect(ctx, 140, 305, 720, 60, 30, '#1b4d24')
-    ctx.fillStyle = '#fff'; ctx.font = '700 29px "Noto Sans Telugu", sans-serif'; ctx.textAlign = 'center'
-    ctx.fillText('📅  నెలవారీ పాల సరఫరా నివేదిక', 500, 345)
+    // Green Title Banner with Live Selected Month & Year
+    drawRoundedRect(ctx, 80, 305, 840, 60, 30, '#1b4d24')
+    ctx.fillStyle = '#fff'
+    ctx.font = '700 27px "Noto Sans Telugu", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(`📅 ${teMonthLabel} — నెలవారీ పాల సరఫరా నివేదిక`, 500, 344)
 
+    // Month-End Report Date & Customer Strip
     const totalDays = new Date(year, month, 0).getDate()
+    const reportDateStr = `${String(totalDays).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`
     const pillsY = 379
-    drawRoundedRect(ctx, 36, pillsY, 372, 46, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
-    ctx.fillStyle = '#1f2937'; ctx.font = '700 18px "Noto Sans Telugu", sans-serif'; ctx.textAlign = 'left'
-    ctx.fillText('కస్టమర్ : ' + cust.CustomerName + ' గారు', 50, pillsY + 29)
-    drawRoundedRect(ctx, 420, pillsY, 242, 46, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
-    ctx.textAlign = 'center'; ctx.fillText('నెల : ' + teMonthLabel, 541, pillsY + 29)
-    drawRoundedRect(ctx, 674, pillsY, 290, 46, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
-    ctx.fillText('తేదీ : ' + String(totalDays).padStart(2, '0') + '-' + teMonthLabel, 819, pillsY + 29)
 
-      // Live Month & Year + Month-End Report Date
-  const monthLabel = `${TELUGU_MONTHS[month - 1]} ${year}`
-  const reportDateStr = `${String(totalDays).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`
+    drawRoundedRect(ctx, 36, pillsY, 390, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+    ctx.fillStyle = '#1f2937'
+    ctx.font = '700 18px "Noto Sans Telugu", sans-serif'
+    ctx.textAlign = 'left'
+    ctx.fillText(`కస్టమర్ : ${cust.CustomerName} గారు`, 50, pillsY + 29)
 
-  // Green Section Title Banner with Live Selected Month
-  ctx.fillStyle = '#0f3d28'
-  roundRect(ctx, 36, bannerY, W - 72, 46, 10)
-  ctx.fill()
-  ctx.fillStyle = '#ffffff'
-  ctx.font = 'bold 21px "Noto Sans Telugu", "Nirmala UI", sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText(`📅 ${monthLabel} — నెలవారీ పాల సరఫరా నివేదిక`, W / 2, bannerY + 30)
+    drawRoundedRect(ctx, 438, pillsY, 232, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+    ctx.textAlign = 'center'
+    ctx.fillText(`నెల : ${teMonthLabel}`, 554, pillsY + 29)
 
-  // Customer Name (Left) & Month-End Report Date (Right)
-  const infoY = bannerY + 76
-  ctx.textAlign = 'left'
-  ctx.fillStyle = '#1e293b'
-  ctx.font = 'bold 21px "Noto Sans Telugu", "Nirmala UI", sans-serif'
-  ctx.fillText(`కస్టమర్ : ${cust.CustomerName} గారు`, 42, infoY)
+    drawRoundedRect(ctx, 682, pillsY, 282, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+    ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, 823, pillsY + 29)
 
-  ctx.textAlign = 'right'
-  ctx.fillStyle = '#0f5132'
-  ctx.font = 'bold 19px "Noto Sans Telugu", "Nirmala UI", sans-serif'
-  ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, W - 42, infoY)
+    // Calendar Grid
+    const gridTop = 437
+    const colW = 928 / 7
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const numRows = Math.ceil((firstDay + totalDays) / 7)
+    const rowH = numRows === 6 ? 70 : 82
 
-    const gridTop = 437, colW = 928 / 7, firstDay = new Date(year, month - 1, 1).getDay()
-    const numRows = Math.ceil((firstDay + totalDays) / 7), rowH = numRows === 6 ? 70 : 82
-    drawRoundedRect(ctx, 36, gridTop, 928, 44 + numRows * rowH, 12, 'rgba(255,253,247,0.86)', '#9ca3af')
+    drawRoundedRect(ctx, 36, gridTop, 928, 44 + numRows * rowH, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
     TE_DAYS.forEach((d, i) => {
-      ctx.fillStyle = i === 0 ? '#b91c1c' : '#144522'; ctx.fillRect(36 + i * colW, gridTop, colW, 44)
-      ctx.fillStyle = '#fff'; ctx.font = '700 19px "Noto Sans Telugu", sans-serif'; ctx.fillText(d, 36 + i * colW + colW / 2, gridTop + 29)
+      ctx.fillStyle = i === 0 ? '#b91c1c' : '#144522'
+      ctx.fillRect(36 + i * colW, gridTop, colW, 44)
+      ctx.fillStyle = '#fff'
+      ctx.font = '700 19px "Noto Sans Telugu", sans-serif'
+      ctx.fillText(d, 36 + i * colW + colW / 2, gridTop + 29)
     })
 
+    let calTotalQty = 0
     for (let day = 1; day <= totalDays; day++) {
-      const slot = firstDay + day - 1, col = slot % 7, row = Math.floor(slot / 7)
-      const cx = 36 + col * colW, cy = gridTop + 44 + row * rowH
-      const dateStr = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0')
+      const slot = firstDay + day - 1
+      const col = slot % 7
+      const row = Math.floor(slot / 7)
+      const cx = 36 + col * colW
+      const cy = gridTop + 44 + row * rowH
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       const dayObj = daysList.find(d => d.Date === dateStr)
-      const qty = (dayObj?.Morning?.DeliveryStatus === 'Delivered' ? Number(dayObj.Morning.MilkQuantity || 0) : 0) + (dayObj?.Evening?.DeliveryStatus === 'Delivered' ? Number(dayObj.Evening.MilkQuantity || 0) : 0)
-      ctx.fillStyle = col === 0 ? '#b91c1c' : '#111827'; ctx.font = '700 20px sans-serif'; ctx.fillText(String(day), cx + colW / 2, cy + 27)
+      const qty =
+        (dayObj?.Morning?.DeliveryStatus === 'Delivered' ? Number(dayObj.Morning.MilkQuantity || 0) : 0) +
+        (dayObj?.Evening?.DeliveryStatus === 'Delivered' ? Number(dayObj.Evening.MilkQuantity || 0) : 0)
+      calTotalQty += qty
+
+      ctx.fillStyle = col === 0 ? '#b91c1c' : '#111827'
+      ctx.font = '700 20px sans-serif'
+      ctx.fillText(String(day), cx + colW / 2, cy + 27)
+
       if (qty > 0) {
         drawRoundedRect(ctx, cx + 13, cy + rowH - 36, colW - 26, 27, 14, 'rgba(220,252,231,0.95)')
-        ctx.fillStyle = '#14532d'; ctx.font = '700 16px "Noto Sans Telugu", sans-serif'; ctx.fillText(Number(qty.toFixed(2)) + ' లీ', cx + colW / 2, cy + rowH - 17)
+        ctx.fillStyle = '#14532d'
+        ctx.font = '700 16px "Noto Sans Telugu", sans-serif'
+        ctx.fillText(`${Number(qty.toFixed(2))} లీ`, cx + colW / 2, cy + rowH - 17)
       } else if (dayObj?.Color === 'Red') {
         drawRoundedRect(ctx, cx + 13, cy + rowH - 36, colW - 26, 27, 14, 'rgba(254,226,226,0.95)')
-        ctx.fillStyle = '#b91c1c'; ctx.font = '700 16px "Noto Sans Telugu", sans-serif'; ctx.fillText('లేవు', cx + colW / 2, cy + rowH - 17)
+        ctx.fillStyle = '#b91c1c'
+        ctx.font = '700 16px "Noto Sans Telugu", sans-serif'
+        ctx.fillText('లేవు', cx + colW / 2, cy + rowH - 17)
       }
     }
 
     const milkItem = (full.Items || []).find(i => i.ItemType === 'Milk')
     const milkRate = Number(milkItem?.Rate || cust.MilkRate || 100)
-    const milkQty = Number(milkItem?.TotalQuantity || (milkRate > 0 ? Number(full.MilkTotal || 0) / milkRate : 0))
+    const milkQty = Number(
+      milkItem?.TotalQuantity || (calTotalQty > 0 ? calTotalQty : milkRate > 0 ? Number(full.MilkTotal || 0) / milkRate : 0)
+    )
     const totalDue = Number(full.TotalAmountDue || 0)
-    const cardsY = gridTop + 44 + numRows * rowH + 16, cardW = (928 - 32) / 3
-    ;[['🥛 మొత్తం పాలు', Number(milkQty.toFixed(2)) + ' లీటర్లు', '#144522'], ['లీటరు ధర', '₹ ' + milkRate.toFixed(2), '#144522'], ['చెల్లించవలసిన మొత్తం', '₹ ' + totalDue.toFixed(2), '#b45309']].forEach(([lbl, val, col], idx) => {
+    const cardsY = gridTop + 44 + numRows * rowH + 16
+    const cardW = (928 - 32) / 3
+
+    const summaryCards = [
+      ['🥛 మొత్తం పాలు', `${Number(milkQty.toFixed(2))} లీటర్లు`, '#144522'],
+      ['లీటరు ధర', `₹ ${milkRate.toFixed(2)}`, '#144522'],
+      ['చెల్లించవలసిన మొత్తం', `₹ ${totalDue.toFixed(2)}`, '#b45309']
+    ]
+
+    summaryCards.forEach(([lbl, val, col], idx) => {
       const x = 36 + idx * (cardW + 16)
-      drawRoundedRect(ctx, x, cardsY, cardW, 88, 14, 'rgba(255,253,247,0.90)', '#6b7280')
-      ctx.fillStyle = '#1f2937'; ctx.font = '700 17px "Noto Sans Telugu", sans-serif'; ctx.fillText(lbl, x + cardW / 2, cardsY + 30)
-      ctx.fillStyle = col; ctx.font = '800 24px "Noto Sans Telugu", sans-serif'; ctx.fillText(val, x + cardW / 2, cardsY + 67)
+      drawRoundedRect(ctx, x, cardsY, cardW, 88, 14, 'rgba(255,253,247,0.92)', '#6b7280')
+      ctx.fillStyle = '#1f2937'
+      ctx.font = '700 17px "Noto Sans Telugu", sans-serif'
+      ctx.fillText(lbl, x + cardW / 2, cardsY + 30)
+      ctx.fillStyle = col
+      ctx.font = '800 24px "Noto Sans Telugu", sans-serif'
+      ctx.fillText(val, x + cardW / 2, cardsY + 67)
     })
 
-    const prevTotal = Math.max(0, Number(full.PreviousOpeningBalance || 0)) + Math.max(0, Number(full.PreviousMilkBalance || 0)) + Math.max(0, Number(full.PreviousVeenaPusaBalance || 0))
+    const prevTotal =
+      Math.max(0, Number(full.PreviousOpeningBalance || 0)) +
+      Math.max(0, Number(full.PreviousMilkBalance || 0)) +
+      Math.max(0, Number(full.PreviousVeenaPusaBalance || 0))
     const extras = []
-    if (Number(full.VeenaPusaTotal || 0) > 0) extras.push('వెన్నపూస: ₹ ' + Number(full.VeenaPusaTotal).toFixed(2))
-    if (prevTotal > 0) extras.push('పాత బకాయి: ₹ ' + prevTotal.toFixed(2))
+    if (Number(full.VeenaPusaTotal || 0) > 0) extras.push(`వెన్నపూస: ₹ ${Number(full.VeenaPusaTotal).toFixed(2)}`)
+    if (prevTotal > 0) extras.push(`పాత బకాయి: ₹ ${prevTotal.toFixed(2)}`)
     if (noteText.trim()) extras.push(noteText.trim())
+
     const notesY = cardsY + 102
-    drawRoundedRect(ctx, 36, notesY, 928, 54, 12, 'rgba(255,253,247,0.90)', '#6b7280')
-    ctx.fillStyle = '#1f2937'; ctx.font = '700 17px "Noto Sans Telugu", sans-serif'; ctx.textAlign = 'left'
-    ctx.fillText('గమనిక : ' + (extras.length ? extras.join(' | ') : 'ధన్యవాదాలు! సకాలంలో చెల్లించగలరు.'), 54, notesY + 34)
+    drawRoundedRect(ctx, 36, notesY, 928, 54, 12, 'rgba(255,253,247,0.92)', '#6b7280')
+    ctx.fillStyle = '#1f2937'
+    ctx.font = '700 17px "Noto Sans Telugu", sans-serif'
+    ctx.textAlign = 'left'
+    ctx.fillText(`గమనిక : ${extras.length ? extras.join(' | ') : 'ధన్యవాదాలు! సకాలంలో చెల్లించగలరు.'}`, 54, notesY + 34)
 
     return { canvas, dataUrl: canvas.toDataURL('image/png'), full, milkQty, milkRate, prevTotal, totalDue }
   }
 
   async function openPreview(cust, bill) {
     setWorking(true)
-    try { setCustomNotes(''); setPreview({ cust, bill, ...(await buildBillCanvas(cust, bill, '')) }) } finally { setWorking(false) }
+    try {
+      setCustomNotes('')
+      const built = await buildBillCanvas(cust, bill, '')
+      setPreview({ cust, bill, ...built })
+    } catch (e) {
+      showNotice('Preview failed: ' + e.message, true)
+    } finally {
+      setWorking(false)
+    }
   }
 
   async function downloadAndShare(cust, bill, openWa = true, existing = null) {
     const p = existing || (await buildBillCanvas(cust, bill, customNotes))
-    const link = document.createElement('a'); link.download = cust.CustomerName + '_' + teMonthLabel + '.png'; link.href = p.dataUrl; link.click()
+    const link = document.createElement('a')
+    link.download = `${cust.CustomerName}_${teMonthLabel}.png`
+    link.href = p.dataUrl
+    link.click()
     try {
       const blob = await new Promise(r => p.canvas.toBlob(r, 'image/png'))
-      if (blob && navigator.clipboard?.write) await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      if (blob && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      }
     } catch {}
-    if (!openWa) return setMsg('Bill PNG downloaded & copied!')
+    if (!openWa) return showNotice('Bill PNG downloaded & copied!')
 
     const clean = String(cust.MobileNumber || '').replace(/\D/g, '')
-    if (clean.length < 10) return setMsg('Invalid customer mobile number.')
-    const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? '\n🧈 వెన్నపూస విలువ: ₹' + Number(p.full.VeenaPusaTotal).toFixed(2) : ''
-    const text = 'నమస్తే *' + cust.CustomerName + '* గారు 🙏\nమీ *' + teMonthLabel + '* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *' + Number(p.milkQty.toFixed(2)) + ' లీటర్లు*\n💰 లీటరు ధర: ₹' + p.milkRate.toFixed(2) + '\n🧾 ' + teMonthLabel + ' పాల విలువ: ₹' + Number(p.full.MilkTotal || 0).toFixed(2) + vpLine + '\n📌 పాత బకాయి: ₹' + p.prevTotal.toFixed(2) + '\n\n💵 *చెల్లించవలసిన మొత్తం: ₹' + p.totalDue.toFixed(2) + '*\nధన్యవాదాలు!'
-    window.location.href = 'whatsapp://send?phone=91' + clean.slice(-10) + '&text=' + encodeURIComponent(text)
+    if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
+    const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(p.full.VeenaPusaTotal).toFixed(2)}` : ''
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(p.full.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
+    window.location.href = `whatsapp://send?phone=91${clean.slice(-10)}&text=${encodeURIComponent(text)}`
   }
+
+  const yearOptions = [2025, 2026, 2027]
+
   return (
     <div style={{ width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', background: '#fff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
@@ -216,7 +344,7 @@ export default function MonthlyBilling() {
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>Preview Telugu bill card, add notes, download PNG, or share on WhatsApp</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           <select value={month} onChange={e => setMonth(Number(e.target.value))} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
             {TE_MONTHS.map((m, i) => (
               <option key={i + 1} value={i + 1}>{m}</option>
@@ -224,23 +352,23 @@ export default function MonthlyBilling() {
           </select>
 
           <select value={year} onChange={e => setYear(Number(e.target.value))} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
-            {[2025, 2026, 2027].map(y => (
+            {yearOptions.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
 
-          <button type="button" onClick={() => generateBill(null)} disabled={working} style={{ padding: '10px 16px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-            ⚡ Generate All Bills
+          <button type="button" onClick={() => generateBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: working ? 0.7 : 1 }}>
+            {working && progressText.startsWith('Generating') ? progressText : '⚡ Generate All Bills'}
           </button>
 
-          <button type="button" onClick={() => finalizeBill(null)} disabled={working} style={{ padding: '10px 16px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-            🔒 Finalize All Bills
+          <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: working ? 0.7 : 1 }}>
+            {working && progressText.startsWith('Finalizing') ? progressText : '🔒 Finalize All Bills'}
           </button>
         </div>
       </div>
 
       {msg && (
-        <div style={{ padding: '12px 16px', background: '#dcfce7', color: '#15803d', borderRadius: '10px', marginBottom: '14px', fontWeight: 600 }}>
+        <div style={{ padding: '12px 16px', background: msgError ? '#fee2e2' : '#dcfce7', color: msgError ? '#b91c1c' : '#15803d', borderRadius: '10px', marginBottom: '14px', fontWeight: 600 }}>
           {msg}
         </div>
       )}
@@ -297,6 +425,7 @@ export default function MonthlyBilling() {
                             <button type="button" onClick={() => openPreview(c, b)} style={{ padding: '6px 10px', background: '#475569', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                               🖼️ Telugu Bill Preview
                             </button>
+                            <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                             <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
                               💬 WhatsApp
                             </button>
