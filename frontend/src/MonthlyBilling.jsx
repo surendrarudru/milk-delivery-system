@@ -314,6 +314,7 @@ export default function MonthlyBilling() {
   }
 
   async function downloadAndShare(cust, bill, openWa = true, existing = null) {
+    try {
     const p = existing || (await buildBillCanvas(cust, bill, customNotes))
     const link = document.createElement('a')
     link.download = `${cust.CustomerName}_${teMonthLabel}.png`
@@ -331,7 +332,8 @@ export default function MonthlyBilling() {
     if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
     const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(p.full.VeenaPusaTotal).toFixed(2)}` : ''
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(p.full.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
-    window.location.href = `whatsapp://send?phone=91${clean.slice(-10)}&text=${encodeURIComponent(text)}`
+    window.open(`https://whatsapp.com{clean.slice(-10)}&text=${encodeURIComponent(text)}`, '_blank')
+    } catch (e) { showNotice('Share error: ' + e.message, true) }
   }
 
   const yearOptions = [2025, 2026, 2027]
