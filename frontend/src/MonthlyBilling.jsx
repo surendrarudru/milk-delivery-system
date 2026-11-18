@@ -35,44 +35,36 @@ export default function MonthlyBilling() {
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
-  const [customers, setCustomers] = useState([])
-  const [billsMap, setBillsMap] = useState({})
+  const [rows, setRows] = useState([])
+  const [billingAllowed, setBillingAllowed] = useState(true)
+  const [windowInfo, setWindowInfo] = useState({ start: '', end: '' })
   const [loading, setLoading] = useState(false)
   const [working, setWorking] = useState(false)
-  const [progressText, setProgressText] = useState('')
   const [msg, setMsg] = useState('')
   const [msgError, setMsgError] = useState(false)
   const [preview, setPreview] = useState(null)
   const [customNotes, setCustomNotes] = useState('')
 
   const teMonthLabel = `${TE_MONTHS[month - 1]} ${year}`
-  const yearOptions = [2025,2026,2027]
+  const yearList =
 
   function showNotice(text, isErr = false) {
     setMsg(text)
     setMsgError(isErr)
   }
 
-  async function loadAllBills() {
+  async function loadSummary() {
     setLoading(true)
     try {
-      const cRes = await fetch(`${API_URL}/customers`)
-      if (!cRes.ok) throw new Error('Failed to load customers')
-      const activeCusts = (await cRes.json()).filter(c => c.IsActive)
-      setCustomers(activeCusts)
-
-      const entries = await Promise.all(activeCusts.map(async c => {
-        try {
-          const r = await fetch(`${API_URL}/customers/${c.CustomerID}/bills`)
-          if (!r.ok) return [c.CustomerID, null]
-          const d = await r.json()
-          const found = (d.Bills || []).find(b => Number(b.BillYear) === year && Number(b.BillMonth) === month) || null
-          return [c.CustomerID, found]
-        } catch {
-          return [c.CustomerID, null]
-        }
-      }))
-      setBillsMap(Object.fromEntries(entries))
+      const res = await fetch(`${API_URL}/billing/monthly-summary/${year}/${month}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to load monthly bills')
+      }
+      const data = await res.json()
+      setRows(Array.isArray(data.Rows) ? data.Rows : [])
+      setBillingAllowed(Boolean(data.BillingAllowed))
+      setWindowInfo({ start: data.WindowStart || '', end: data.MonthEnd || '' })
     } catch (e) {
       showNotice('Load failed: ' + e.message, true)
     } finally {
@@ -82,84 +74,55 @@ export default function MonthlyBilling() {
 
   useEffect(() => {
     setMsg('')
-    loadAllBills()
+    loadSummary()
   }, [month, year])
 
   async function generateBill(custId = null) {
-    const targets = custId ? [custId] : customers.filter(c => !billsMap[c.CustomerID]).map(c => c.CustomerID)
-    if (targets.length === 0) {
-      return showNotice(`${teMonthLabel} కోసం అన్ని బిల్లులు ఇప్పటికే Generate అయ్యాయి!`)
+    if (!billingAllowed) {
+      return showNotice(`${teMonthLabel} బిల్లింగ్ నెలాఖరు 2 రోజులలో మాత్రమే (${windowInfo.start} నుండి ${windowInfo.end} వరకు) ఓపెన్ అవుతుంది.`, true)
     }
     setWorking(true)
     setMsg('')
-    let okCount = 0
-    let failMsg = ''
     try {
-      for (let i = 0; i < targets.length; i++) {
-        const id = targets[i]
-        setProgressText(`Generating ${i + 1} / ${targets.length}...`)
-        const res = await fetch(`${API_URL}/billing/generate/${id}/${year}/${month}`, { method: 'POST' })
-        if (res.ok) {
-          okCount += 1
-        } else {
-          const errData = await res.json().catch(() => ({}))
-          failMsg = errData.detail || 'Generate failed'
-          if (custId) throw new Error(failMsg)
-        }
-      }
-      await loadAllBills()
-      if (okCount > 0) showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Generate అయ్యాయి!`)
-      else if (failMsg) showNotice(failMsg, true)
+      const url = custId
+        ? `${API_URL}/billing/generate/${custId}/${year}/${month}`
+        : `${API_URL}/billing/generate-all/${year}/${month}`
+      const res = await fetch(url, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.detail || 'Generate failed')
+      await loadSummary()
+      showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${data.created ?? 0} బిల్లులు Generate అయ్యాయి!`)
     } catch (e) {
       showNotice(e.message, true)
     } finally {
       setWorking(false)
-      setProgressText('')
     }
   }
 
   async function finalizeBill(billId = null) {
-    const targets = billId
-      ? [billId]
-      : Object.values(billsMap).filter(b => b && b.BillStatus === 'Generated').map(b => b.BillID)
-    if (targets.length === 0) {
-      return showNotice(`${teMonthLabel} లో Finalize చేయడానికి 'Generated' బిల్లులు లేవు (ముందు Generate నొక్కండి).`, true)
+    if (!billingAllowed) {
+      return showNotice(`${teMonthLabel} బిల్లింగ్ నెలాఖరు 2 రోజులలో మాత్రమే (${windowInfo.start} నుండి ${windowInfo.end} వరకు) ఓపెన్ అవుతుంది.`, true)
     }
-    if (!billId && !window.confirm(`${teMonthLabel} — ${targets.length} బిల్లులను Finalize చేయాలా?`)) return
+    if (!billId && !window.confirm(`${teMonthLabel} — Generated బిల్లులన్నింటినీ Finalize చేయాలా?`)) return
     setWorking(true)
     setMsg('')
-    let okCount = 0
-    let failMsg = ''
     try {
-      for (let i = 0; i < targets.length; i++) {
-        const id = targets[i]
-        setProgressText(`Finalizing ${i + 1} / ${targets.length}...`)
-        const res = await fetch(`${API_URL}/billing/finalize/${id}`, { method: 'PUT' })
-        if (res.ok) {
-          okCount += 1
-        } else {
-          const errData = await res.json().catch(() => ({}))
-          failMsg = errData.detail || 'Finalize failed'
-          if (billId) throw new Error(failMsg)
-        }
-      }
-      await loadAllBills()
-      if (okCount > 0) showNotice(billId ? 'Bill finalized!' : `${teMonthLabel} కోసం ${okCount} బిల్లులు Finalize అయ్యాయి!`)
-      else if (failMsg) showNotice(failMsg, true)
+      const url = billId
+        ? `${API_URL}/billing/finalize/${billId}`
+        : `${API_URL}/billing/finalize-all/${year}/${month}`
+      const res = await fetch(url, { method: 'PUT' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.detail || 'Finalize failed')
+      await loadSummary()
+      showNotice(billId ? 'Bill finalized!' : `${teMonthLabel} కోసం ${data.finalized ?? 0} బిల్లులు Finalize అయ్యాయి!`)
     } catch (e) {
       showNotice(e.message, true)
     } finally {
       setWorking(false)
-      setProgressText('')
     }
   }
   async function buildBillCanvas(cust, bill, noteText = '') {
-    const [bRes, cRes, tpl] = await Promise.all([
-      fetch(`${API_URL}/billing/bill/${bill.BillID}`).catch(() => ({ ok: false })),
-      fetch(`${API_URL}/customers/${cust.CustomerID}/delivery-calendar/${year}/${month}`).catch(() => ({ ok: false })),
-      loadTemplateImg()
-    ])
-    const full = bRes.ok ? await bRes.json() : bill
+    const cRes = await fetch(`${API_URL}/customers/${cust.CustomerID}/delivery-calendar/${year}/${month}`).catch(() => ({ ok: false }))
     const cal = cRes.ok ? await cRes.json() : { Days: [] }
     const daysList = Array.isArray(cal.Days) ? cal.Days : []
 
@@ -170,6 +133,7 @@ export default function MonthlyBilling() {
 
     ctx.fillStyle = '#fbf5e6'
     ctx.fillRect(0, 0, 1000, 1350)
+    const tpl = await loadTemplateImg()
     if (tpl) ctx.drawImage(tpl, 0, 0, 1000, 1350)
 
     drawRoundedRect(ctx, 80, 305, 840, 60, 30, '#1b4d24')
@@ -241,20 +205,19 @@ export default function MonthlyBilling() {
       }
     }
 
-    const milkItem = (full.Items || []).find(i => i.ItemType === 'Milk')
-    const milkRate = Number(milkItem?.Rate || cust.MilkRate || 100)
-    const milkQty = Number(
-      milkItem?.TotalQuantity || (calTotalQty > 0 ? calTotalQty : milkRate > 0 ? Number(full.MilkTotal || 0) / milkRate : 0)
-    )
-    const totalDue = Number(full.TotalAmountDue || 0)
+    const milkRate = Number(cust.MilkRate || 100)
+    const milkQty = Number(calTotalQty > 0 ? calTotalQty : milkRate > 0 ? Number(bill.MilkTotal || 0) / milkRate : 0)
+    const totalDue = Number(bill.TotalAmountDue || 0)
     const cardsY = gridTop + 44 + numRows * rowH + 16
     const cardW = (928 - 32) / 3
 
-    ;[
+    const cards = [
       ['🥛 మొత్తం పాలు', `${Number(milkQty.toFixed(2))} లీటర్లు`, '#144522'],
       ['లీటరు ధర', `₹ ${milkRate.toFixed(2)}`, '#144522'],
       ['చెల్లించవలసిన మొత్తం', `₹ ${totalDue.toFixed(2)}`, '#b45309']
-    ].forEach(([lbl, val, col], idx) => {
+    ]
+
+    cards.forEach(([lbl, val, col], idx) => {
       const x = 36 + idx * (cardW + 16)
       drawRoundedRect(ctx, x, cardsY, cardW, 88, 14, 'rgba(255,253,247,0.92)', '#6b7280')
       ctx.fillStyle = '#1f2937'
@@ -266,11 +229,11 @@ export default function MonthlyBilling() {
     })
 
     const prevTotal =
-      Math.max(0, Number(full.PreviousOpeningBalance || 0)) +
-      Math.max(0, Number(full.PreviousMilkBalance || 0)) +
-      Math.max(0, Number(full.PreviousVeenaPusaBalance || 0))
+      Math.max(0, Number(bill.PreviousOpeningBalance || 0)) +
+      Math.max(0, Number(bill.PreviousMilkBalance || 0)) +
+      Math.max(0, Number(bill.PreviousVeenaPusaBalance || 0))
     const extras = []
-    if (Number(full.VeenaPusaTotal || 0) > 0) extras.push(`వెన్నపూస: ₹ ${Number(full.VeenaPusaTotal).toFixed(2)}`)
+    if (Number(bill.VeenaPusaTotal || 0) > 0) extras.push(`వెన్నపూస: ₹ ${Number(bill.VeenaPusaTotal).toFixed(2)}`)
     if (prevTotal > 0) extras.push(`పాత బకాయి: ₹ ${prevTotal.toFixed(2)}`)
     if (noteText.trim()) extras.push(noteText.trim())
 
@@ -281,7 +244,7 @@ export default function MonthlyBilling() {
     ctx.textAlign = 'left'
     ctx.fillText(`గమనిక : ${extras.length ? extras.join(' | ') : 'ధన్యవాదాలు! సకాలంలో చెల్లించగలరు.'}`, 54, notesY + 34)
 
-    return { canvas, dataUrl: canvas.toDataURL('image/png'), full, milkQty, milkRate, prevTotal, totalDue }
+    return { canvas, dataUrl: canvas.toDataURL('image/png'), milkQty, milkRate, prevTotal, totalDue }
   }
 
   async function openPreview(cust, bill) {
@@ -314,8 +277,8 @@ export default function MonthlyBilling() {
 
       const clean = String(cust.MobileNumber || '').replace(/\D/g, '')
       if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
-      const vpLine = Number(p.full.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(p.full.VeenaPusaTotal).toFixed(2)}` : ''
-      const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(p.full.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
+      const vpLine = Number(bill.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(bill.VeenaPusaTotal).toFixed(2)}` : ''
+      const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(bill.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
       window.open(`https://whatsapp.com{clean.slice(-10)}&text=${encodeURIComponent(text)}`, '_blank')
     } catch (e) {
       showNotice('Share error: ' + e.message, true)
@@ -326,7 +289,11 @@ export default function MonthlyBilling() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', background: '#fff', padding: '16px 20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
         <div>
           <h2 style={{ margin: 0 }}>Customer-wise Monthly Bills — {teMonthLabel}</h2>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>Preview Telugu bill card, add notes, download PNG, or share on WhatsApp</p>
+          <p style={{ margin: '4px 0 0', fontSize: '13px', color: billingAllowed ? '#15803d' : '#b45309', fontWeight: 600 }}>
+            {billingAllowed
+              ? `✅ Billing Open (${windowInfo.start} to ${windowInfo.end}) — Report Date: ${windowInfo.end}`
+              : `⏳ Billing opens only in last 2 days of month (${windowInfo.start} to ${windowInfo.end})`}
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -342,12 +309,12 @@ export default function MonthlyBilling() {
             ))}
           </select>
 
-          <button type="button" onClick={() => generateBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: working ? 0.7 : 1 }}>
-            {working && progressText.startsWith('Generating') ? progressText : '⚡ Generate All Bills'}
+          <button type="button" onClick={() => generateBill(null)} disabled={working || loading || !billingAllowed} style={{ padding: '10px 16px', background: billingAllowed ? '#0f766e' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: billingAllowed ? 'pointer' : 'not-allowed' }}>
+            ⚡ Generate All Bills
           </button>
 
-          <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', opacity: working ? 0.7 : 1 }}>
-            {working && progressText.startsWith('Finalizing') ? progressText : '🔒 Finalize All Bills'}
+          <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading || !billingAllowed} style={{ padding: '10px 16px', background: billingAllowed ? '#1e3a8a' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: billingAllowed ? 'pointer' : 'not-allowed' }}>
+            🔒 Finalize All Bills
           </button>
         </div>
       </div>
@@ -371,56 +338,55 @@ export default function MonthlyBilling() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading && (
               <tr>
                 <td colSpan="6" style={{ padding: '20px', textAlign: 'center' }}>Loading bills...</td>
               </tr>
-            ) : (
-              customers.map(c => {
-                const b = billsMap[c.CustomerID]
-                const isFinal = b?.BillStatus === 'Finalized'
-                return (
-                  <tr key={c.CustomerID} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px' }}>
-                      <strong>{c.CustomerName}</strong>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>{c.CustomerCode}</div>
-                    </td>
-                    <td style={{ padding: '12px' }}>₹{Number(b?.MilkTotal ?? 0).toFixed(2)}</td>
-                    <td style={{ padding: '12px' }}>₹{Number(b?.VeenaPusaTotal ?? 0).toFixed(2)}</td>
-                    <td style={{ padding: '12px', fontWeight: 700, color: '#0f4c2e' }}>₹{Number(b?.TotalAmountDue ?? 0).toFixed(2)}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, background: isFinal ? '#dcfce7' : b ? '#fef3c7' : '#f1f5f9', color: isFinal ? '#15803d' : b ? '#b45309' : '#64748b' }}>
-                        {b ? b.BillStatus : 'Not Generated'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {!b && (
-                          <button type="button" onClick={() => generateBill(c.CustomerID)} disabled={working} style={{ padding: '6px 10px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                            Generate
-                          </button>
-                        )}
-                        {b && !isFinal && (
-                          <button type="button" onClick={() => finalizeBill(b.BillID)} disabled={working} style={{ padding: '6px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                            Finalize
-                          </button>
-                        )}
-                        {b && (
-                          <>
-                            <button type="button" onClick={() => openPreview(c, b)} style={{ padding: '6px 10px', background: '#475569', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                              🖼️ Telugu Bill Preview
-                            </button>
-                            <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
-                              💬 WhatsApp
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
             )}
+            {!loading && rows.map(c => {
+              const b = c.Bill
+              const isFinal = b?.BillStatus === 'Finalized'
+              return (
+                <tr key={c.CustomerID} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '12px' }}>
+                    <strong>{c.CustomerName}</strong>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>{c.CustomerCode}</div>
+                  </td>
+                  <td style={{ padding: '12px' }}>₹{Number(b?.MilkTotal ?? 0).toFixed(2)}</td>
+                  <td style={{ padding: '12px' }}>₹{Number(b?.VeenaPusaTotal ?? 0).toFixed(2)}</td>
+                  <td style={{ padding: '12px', fontWeight: 700, color: '#0f4c2e' }}>₹{Number(b?.TotalAmountDue ?? 0).toFixed(2)}</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, background: isFinal ? '#dcfce7' : b ? '#fef3c7' : '#f1f5f9', color: isFinal ? '#15803d' : b ? '#b45309' : '#64748b' }}>
+                      {b ? b.BillStatus : 'Not Generated'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {!b && billingAllowed && (
+                        <button type="button" onClick={() => generateBill(c.CustomerID)} disabled={working} style={{ padding: '6px 10px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                          Generate
+                        </button>
+                      )}
+                      {b && !isFinal && billingAllowed && (
+                        <button type="button" onClick={() => finalizeBill(b.BillID)} disabled={working} style={{ padding: '6px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                          Finalize
+                        </button>
+                      )}
+                      {b && (
+                        <>
+                          <button type="button" onClick={() => openPreview(c, b)} style={{ padding: '6px 10px', background: '#475569', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                            🖼️ Telugu Bill Preview
+                          </button>
+                          <button type="button" onClick={() => downloadAndShare(c, b)} style={{ padding: '6px 10px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                            💬 WhatsApp
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -453,3 +419,4 @@ export default function MonthlyBilling() {
     </div>
   )
 }
+
