@@ -283,7 +283,7 @@ export default function MonthlyBilling() {
       if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
       const vpLine = Number(bill.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(bill.VeenaPusaTotal).toFixed(2)}` : ''
       const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(bill.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
-      window.open('https://whatsapp.com91' + clean.slice(-10) + '&text=' + encodeURIComponent(text), '_blank')
+      window.open('=91' + clean.slice(-10) + '&text=' + encodeURIComponent(text), '_blank')
     } catch (e) {
       showNotice('Share error: ' + e.message, true)
     }
