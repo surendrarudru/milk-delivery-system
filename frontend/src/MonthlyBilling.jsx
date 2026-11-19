@@ -143,22 +143,28 @@ export default function MonthlyBilling() {
     const currNow = new Date()
       const currMonthEnd = new Date(currNow.getFullYear(), currNow.getMonth() + 1, 0)
       const reportDateStr = `${String(currMonthEnd.getDate()).padStart(2, '0')}-${String(currMonthEnd.getMonth() + 1).padStart(2, '0')}-${currMonthEnd.getFullYear()}`
-    const pillsY = 379
+    const currNow = new Date()
+      const currMonthEnd = new Date(currNow.getFullYear(), currNow.getMonth() + 1, 0)
+      const currentMonthEndStr = `${String(currMonthEnd.getDate()).padStart(2, '0')}-${String(currMonthEnd.getMonth() + 1).padStart(2, '0')}-${currMonthEnd.getFullYear()}`
 
-    drawRoundedRect(ctx, 36, pillsY, 390, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
-    ctx.fillStyle = '#1f2937'
-    ctx.font = '700 18px "Noto Sans Telugu", sans-serif'
-    ctx.textAlign = 'left'
-    ctx.fillText(`కస్టమర్ : ${cust.CustomerName} గారు`, 50, pillsY + 29)
+      const pillsY = 379
+      drawRoundedRect(ctx, 36, pillsY, 390, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+      ctx.fillStyle = '#1f2937'
+      ctx.font = '700 18px "Noto Sans Telugu", sans-serif'
+      ctx.textAlign = 'left'
+      ctx.fillText(`కస్టమర్ : ${cust.CustomerName} గారు`, 50, pillsY + 29)
 
-    drawRoundedRect(ctx, 438, pillsY, 232, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#1f2937'
+      drawRoundedRect(ctx, 438, pillsY, 232, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+      ctx.fillStyle = '#1f2937'
+      ctx.font = '700 18px "Noto Sans Telugu", sans-serif'
+      ctx.textAlign = 'center'
       ctx.fillText(`నెల : ${teMonthLabel}`, 554, pillsY + 29)
 
-    drawRoundedRect(ctx, 682, pillsY, 282, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
-    ctx.fillStyle = '#1f2937'
-      ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, 823, pillsY + 29)
+      drawRoundedRect(ctx, 682, pillsY, 282, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
+      ctx.fillStyle = '#1f2937'
+      ctx.font = '700 18px "Noto Sans Telugu", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(`రిపోర్ట్ తేదీ : ${currentMonthEndStr}`, 823, pillsY + 29)
 
     const gridTop = 437
     const colW = 928 / 7
@@ -291,7 +297,7 @@ export default function MonthlyBilling() {
         <div>
           <h2 style={{ margin: 0 }}>Customer-wise Monthly Bills — {teMonthLabel}</h2>
           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-            Report Date: <strong>{monthEnd || `${new Date(year, month, 0).getDate()}-${String(month).padStart(2, '0')}-${year}`}</strong> • Preview Telugu bill card or share on WhatsApp
+            Report Date: <strong>{(() => { const d = new Date(); const e = new Date(d.getFullYear(), d.getMonth() + 1, 0); return `${String(e.getDate()).padStart(2, '0')}-${String(e.getMonth() + 1).padStart(2, '0')}-${e.getFullYear()}`; })()}</strong> • Preview Telugu bill card or share on WhatsApp
           </p>
         </div>
 
