@@ -12,7 +12,7 @@ if os.getenv("RENDER") or os.getenv("DATABASE_URL"):
         database="postgres",
         query={"sslmode": "require"},
     )
-    engine = create_engine(pg_url, pool_pre_ping=True)
+    engine = create_engine(pg_url, pool_size=3, max_overflow=1, pool_pre_ping=True, pool_recycle=300)
 else:
     SQL_SERVER_URL = (
         "mssql+pyodbc://localhost\\SQLEXPRESS/MilkDeliveryDB"
