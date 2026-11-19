@@ -54,36 +54,44 @@ function CustomerMaster() {
 
   const [formData, setFormData] = useState({ ...emptyForm })
 
-   const fetchCustomers = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const response = await fetch(`${API_URL}/customers-summary`)
-      if (!response.ok) {
-        throw new Error('Failed to load customers')
-      }
-      const data = await response.json()
-      const list = Array.isArray(data) ? data : []
-      setCustomers(list)
+  // LOAD ALL CUSTOMER CARD BALANCES
+  async function loadCustomerCardBalances(customerList = customers) {
+    if (!customerList.length) {
+      setCardBalances({})
+      return
+    }
 
-      const balanceMap = {}
-      list.forEach(c => {
-        balanceMap[c.CustomerID] = {
-          CustomerID: c.CustomerID,
-          CustomerCode: c.CustomerCode,
-          CustomerName: c.CustomerName,
-          AccountBalances: c.AccountBalances || { OpeningBalance: 0, Milk: 0, VeenaPusa: 0 },
-          TotalDue: c.TotalDue ?? 0,
-          TotalAdvance: c.TotalAdvance ?? 0,
-          PaymentStatus: c.PaymentStatus || 'NO DUE',
-          StatusAmount: c.StatusAmount ?? 0,
-        }
-      })
-      setCardBalances(balanceMap)
-    } catch (err) {
-      setError('Customers load cheyyadam fail ayyindi')
+    setBalanceLoading(true)
+
+    try {
+      const results = await Promise.all(
+        customerList.map(async customer => {
+          try {
+            const response = await fetch(
+              `${API_URL}/customers/${customer.CustomerID}/card-balance`
+            )
+
+            if (!response.ok) {
+              throw new Error('Balance load failed')
+            }
+
+            const data = await response.json()
+
+            return [customer.CustomerID, data]
+          } catch (err) {
+            console.error(
+              `Balance failed for Customer ${customer.CustomerID}:`,
+              err
+            )
+
+            return [customer.CustomerID, null]
+          }
+        })
+      )
+
+      setCardBalances(Object.fromEntries(results))
     } finally {
-      setLoading(false)
+      setBalanceLoading(false)
     }
   }
 

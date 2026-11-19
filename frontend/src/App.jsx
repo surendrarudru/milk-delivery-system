@@ -49,23 +49,19 @@ export default function App() {
   
       useEffect(() => {
     let active = true
-    fetch(`${API_URL}/customers-summary`)
-  .then(r => r.json())
-  .then(list => {
-    if (!Array.isArray(list)) return
-    const active = list.filter(c => c.IsActive)
-    const dueCusts = active.filter(c => c.TotalDue > 0)
-    const totalDue = dueCusts.reduce((sum, c) => sum + c.TotalDue, 0)
-    setStats({
-      activeCustomers: active.length,
-      morningRoute: active.filter(c => c.MorningDelivery).length,
-      eveningRoute: active.filter(c => c.EveningDelivery).length,
-      outstandingAmount: totalDue,
-      dueCustomersCount: dueCusts.length,
-    })
-    setBackendOnline(true)
-  })
-
+    fetch(`${API_URL}/customers`)
+      .then(r => r.json())
+      .then(async data => {
+        if (!active) return
+        const activeList = (Array.isArray(data) ? data : []).filter(c => c.IsActive)
+        const balances = await Promise.all(
+          activeList.map(async c => {
+            try {
+              const res = await fetch(`${API_URL}/customers/${c.CustomerID}/ledger`)
+              if (res.ok) return parseLedgerBalances(await res.json()).total
+            } catch {}
+            return Number(c.OpeningBalance || 0)
+          })
         )
                 const positiveBalances = balances.filter(val => val > 0)
         const totalDue = positiveBalances.reduce((sum, val) => sum + val, 0)
