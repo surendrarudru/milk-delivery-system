@@ -22,35 +22,22 @@ export default function Reports() {
   async function loadReportsData() {
     setLoading(true); setError('')
     try {
-      const custRes = await fetch(API_URL + '/customers')
-      if (!custRes.ok) throw new Error('Customers load failed')
-      const custData = await custRes.json()
-      const customerList = Array.isArray(custData) ? custData : []
+      const [sumRes, ovRes] = await Promise.all([
+        fetch(API_URL + '/customers-summary'),
+        fetch(API_URL + '/reports/monthly-overview/' + year + '/' + month)
+      ])
+      if (!sumRes.ok) throw new Error('Customers summary load failed')
+      const sumData = await sumRes.json()
+      const customerList = Array.isArray(sumData) ? sumData : []
       setCustomers(customerList)
+      setBalances(Object.fromEntries(customerList.map(c => [c.CustomerID, c])))
 
-      const balanceEntries = await Promise.all(customerList.map(async c => {
-        try {
-          const res = await fetch(API_URL + '/customers/' + c.CustomerID + '/card-balance')
-          return [c.CustomerID, res.ok ? await res.json() : null]
-        } catch { return [c.CustomerID, null] }
-      }))
-      setBalances(Object.fromEntries(balanceEntries))
-
-      const previewResults = await Promise.all(customerList.map(async c => {
-        try {
-          const res = await fetch(API_URL + '/billing/preview/' + c.CustomerID + '/' + year + '/' + month)
-          if (!res.ok) return null
-          const p = await res.json()
-          return {
-            CustomerID: c.CustomerID, CustomerCode: c.CustomerCode, CustomerName: c.CustomerName,
-            ReferenceName: c.ReferenceName, IsActive: c.IsActive,
-            MilkTotalQuantity: Number(p.MilkTotalQuantity || 0), MilkTotal: Number(p.MilkTotal || 0),
-            VeenaPusaTotalQuantity: Number(p.VeenaPusaTotalQuantity || 0), VeenaPusaTotal: Number(p.VeenaPusaTotal || 0),
-            MonthTotal: Number(p.MilkTotal || 0) + Number(p.VeenaPusaTotal || 0)
-          }
-        } catch { return null }
-      }))
-      setMonthlySummaries(previewResults.filter(Boolean))
+      if (ovRes.ok) {
+        const ovData = await ovRes.json()
+        setMonthlySummaries(Array.isArray(ovData) ? ovData : [])
+      } else {
+        setMonthlySummaries([])
+      }
     } catch (err) { setError(err.message || 'Reports load failed') } finally { setLoading(false) }
   }
 

@@ -95,26 +95,19 @@ function CustomerMaster() {
     }
   }
 
-  // LOAD CUSTOMERS
+  // LOAD CUSTOMERS (SINGLE FAST QUERY WITH BALANCES)
   async function loadCustomers() {
     setLoading(true)
     setError('')
-
     try {
-      const response = await fetch(`${API_URL}/customers`)
-
+      const response = await fetch(`${API_URL}/customers-summary`)
       if (!response.ok) {
         throw new Error('Customers load cheyyadam fail ayyindi')
       }
-
       const data = await response.json()
-
       const customerList = Array.isArray(data) ? data : []
-
       setCustomers(customerList)
-
-      await loadCustomerCardBalances(customerList)
-
+      setCardBalances(Object.fromEntries(customerList.map(c => [c.CustomerID, c])))
     } catch (err) {
       setError(err.message)
     } finally {
