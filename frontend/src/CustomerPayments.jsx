@@ -73,9 +73,9 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
       const res = await fetch(`${API_URL}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CustomerID: Number(custId), PaymentDate: form.date, PaymentMode: form.mode, OpeningPaid: Number(form.opening || 0), MilkPaid: Number(form.milk || 0), VeenaPusaPaid: Number(form.butter || 0), TotalPaid: allocated, Notes: form.notes })
+        body: JSON.stringify({ CustomerID: Number(custId), PaymentDate: form.date, PaymentMode: form.mode, OpeningBalanceAmount: Number(form.opening || 0), MilkAmount: Number(form.milk || 0), VeenaPusaAmount: Number(form.butter || 0), TotalAmount: allocated, Notes: form.notes })
       })
-      if (!res.ok) throw new Error('Payment save failed')
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(typeof err.detail === 'string' ? err.detail : 'Payment save failed') }
       setMsg(`Saved ₹${allocated} payment for ${selectedCust?.CustomerName || 'Customer'}.`)
       setForm(f => ({ ...f, opening: 0, milk: 0, butter: 0, notes: '' }))
       await pickCust(custId); await loadAll()

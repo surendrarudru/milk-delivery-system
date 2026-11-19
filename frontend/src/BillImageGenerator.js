@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:8000'
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.'); const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://onrender.com');
 
 const TELUGU_MONTHS = [
   'జనవరి',

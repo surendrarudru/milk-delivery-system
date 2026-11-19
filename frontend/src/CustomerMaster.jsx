@@ -370,11 +370,10 @@ function CustomerMaster() {
     } else if (filter === 'Morning') {
       matchesFilter = customer.MorningDelivery === true
     } else if (filter === 'Evening') {
-        } else if (filter === 'Due') {
+      matchesFilter = customer.EveningDelivery === true
+    } else if (filter === 'Due') {
       const st = String(cardBalances[customer.CustomerID]?.PaymentStatus || '').toUpperCase()
       matchesFilter = st === 'DUE' || st === 'PARTIAL'
-
-      matchesFilter = customer.EveningDelivery === true
     }
 
     return matchesSearch && matchesFilter
