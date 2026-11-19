@@ -142,9 +142,6 @@ export default function MonthlyBilling() {
     const totalDays = new Date(year, month, 0).getDate()
     const currNow = new Date()
       const currMonthEnd = new Date(currNow.getFullYear(), currNow.getMonth() + 1, 0)
-      const reportDateStr = `${String(currMonthEnd.getDate()).padStart(2, '0')}-${String(currMonthEnd.getMonth() + 1).padStart(2, '0')}-${currMonthEnd.getFullYear()}`
-    const currNow = new Date()
-      const currMonthEnd = new Date(currNow.getFullYear(), currNow.getMonth() + 1, 0)
       const currentMonthEndStr = `${String(currMonthEnd.getDate()).padStart(2, '0')}-${String(currMonthEnd.getMonth() + 1).padStart(2, '0')}-${currMonthEnd.getFullYear()}`
 
       const pillsY = 379
