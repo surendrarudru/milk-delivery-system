@@ -295,10 +295,7 @@ function DeliveryEntry() {
     const dateTe = deliveryDate.split('-').reverse().join('-');
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`;
     return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text);
-  }* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
-    return '=91' + clean + '&text=' + encodeURIComponent(text)
   }
-
   function openAllUndeliveredModal() {
     const list = customers
       .filter(c => deliveries[c.CustomerID]?.DeliveryStatus === 'Undelivered')
