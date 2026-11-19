@@ -19,6 +19,8 @@ function DeliveryEntry() {
   const [message, setMessage] = useState('')
   const [completed, setCompleted] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [waModalList, setWaModalList] = useState([])
+  const [waSentIds, setWaSentIds] = useState({})
 
   useEffect(() => {
     async function fetchDeliveryBoys() {
@@ -262,17 +264,10 @@ function DeliveryEntry() {
       setCompleted(true)
 
       if (undeliveredList.length > 0) {
-        await fetch(`${API_URL}/delivery/session/notify-undelivered`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            DeliveryDate: deliveryDate,
-            SessionType: session,
-            Deliveries: undeliveredList
-          })
-        }).catch(() => {})
+        setWaSentIds({})
+        setWaModalList(undeliveredList)
         setMessage(
-          `${session} session completed! ${undeliveredList.length} మంది Undelivered customers కి Telugu WhatsApp alerts queue అయ్యాయి.`
+          `${session} session completed! ${undeliveredList.length} మంది Undelivered customers కి కింద ఉన్న బటన్లతో Telugu WhatsApp alerts పంపండి.`
         )
       } else {
         setMessage('Delivery session completed successfully. అందరికీ పాలు డెలివరీ అయ్యాయి.')
@@ -291,6 +286,30 @@ function DeliveryEntry() {
   const undeliveredCount = Object.values(deliveries).filter(
     (item) => item.DeliveryStatus === 'Undelivered'
   ).length
+  function openUndeliveredWhatsApp(cust) {
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
+    if (clean.length < 10) return alert('ఈ కస్టమర్‌కు సరైన మొబైల్ నంబర్ లేదు.')
+    setWaSentIds(prev => ({ ...prev, [cust.CustomerID]: true }))
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
+    const dateTe = deliveryDate.split('-').reverse().join('-')
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    window.open(`https://whatsapp.com{clean}&text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  function openAllUndeliveredModal() {
+    const list = customers
+      .filter(c => deliveries[c.CustomerID]?.DeliveryStatus === 'Undelivered')
+      .map(c => ({
+        CustomerID: c.CustomerID,
+        CustomerName: c.CustomerName,
+        MobileNumber: c.MobileNumber,
+        DeliveryStatus: 'Undelivered'
+      }))
+    if (!list.length) return alert('Undelivered customers ఎవరూ లేరు.')
+    setWaModalList(list)
+  }
+
+  const nextWaCust = waModalList.find(c => String(c.MobileNumber || '').replace(/\D/g, '').length >= 10 && !waSentIds[c.CustomerID])
 
   return (
     <div className="delivery-page">
@@ -364,6 +383,21 @@ function DeliveryEntry() {
         </div>
       </div>
 
+      {undeliveredCount > 0 && (
+        <div style={{ marginBottom: '14px' }}>
+          <button
+            type="button"
+            onClick={openAllUndeliveredModal}
+            style={{ width: '100%', padding: '12px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}
+          >
+            💬 Send Undelivered Telugu WhatsApp Alerts ({undeliveredCount})
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'none' }}>
+      </div>
+
       {message && <div className="delivery-message">{message}</div>}
 
       {loading ? (
@@ -376,8 +410,32 @@ function DeliveryEntry() {
               if (!item) return null
 
               const isUndelivered = item.DeliveryStatus === 'Undelivered'
+  function openUndeliveredWhatsApp(cust) {
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
+    if (clean.length < 10) return alert('ఈ కస్టమర్‌కు సరైన మొబైల్ నంబర్ లేదు.')
+    setWaSentIds(prev => ({ ...prev, [cust.CustomerID]: true }))
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
+    const dateTe = deliveryDate.split('-').reverse().join('-')
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    window.open(`https://whatsapp.com{clean}&text=${encodeURIComponent(text)}`, '_blank')
+  }
 
-              return (
+  function openAllUndeliveredModal() {
+    const list = customers
+      .filter(c => deliveries[c.CustomerID]?.DeliveryStatus === 'Undelivered')
+      .map(c => ({
+        CustomerID: c.CustomerID,
+        CustomerName: c.CustomerName,
+        MobileNumber: c.MobileNumber,
+        DeliveryStatus: 'Undelivered'
+      }))
+    if (!list.length) return alert('Undelivered customers ఎవరూ లేరు.')
+    setWaModalList(list)
+  }
+
+  const nextWaCust = waModalList.find(c => String(c.MobileNumber || '').replace(/\D/g, '').length >= 10 && !waSentIds[c.CustomerID])
+
+  return (
                 <div
                   className={`delivery-card ${isUndelivered ? 'undelivered-card' : 'delivered-card'}`}
                   key={customer.CustomerID}
@@ -598,6 +656,59 @@ function DeliveryEntry() {
       {completed && (
         <div className="completed-notice">
           This delivery session is completed and locked.
+        </div>
+      )}
+      {waModalList.length > 0 && (
+        <div className="customer-modal-overlay" onClick={() => setWaModalList([])}>
+          <div className="customer-modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
+            <div className="customer-modal-header">
+              <h2>💬 Undelivered Telugu WhatsApp Alerts ({waModalList.length})</h2>
+              <button type="button" onClick={() => setWaModalList([])}>✕</button>
+            </div>
+
+            {nextWaCust ? (
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '12px', borderRadius: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <strong style={{ color: '#15803d' }}>Next: {nextWaCust.CustomerName}</strong>
+                <button
+                  type="button"
+                  onClick={() => openUndeliveredWhatsApp(nextWaCust)}
+                  style={{ padding: '8px 14px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  ▶ Send Next ({nextWaCust.CustomerName})
+                </button>
+              </div>
+            ) : (
+              <div style={{ background: '#dcfce7', color: '#15803d', padding: '10px', borderRadius: '8px', fontWeight: 700, marginBottom: '12px' }}>
+                ✅ అందరి Undelivered customers కి WhatsApp alerts పూర్తయ్యాయి!
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gap: '8px', maxHeight: '55vh', overflowY: 'auto' }}>
+              {waModalList.map((c, idx) => {
+                const hasPhone = String(c.MobileNumber || '').replace(/\D/g, '').length >= 10
+                const isSent = Boolean(waSentIds[c.CustomerID])
+                return (
+                  <div key={c.CustomerID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: isSent ? '#f0fdf4' : '#fff' }}>
+                    <div>
+                      <strong>{idx + 1}. {c.CustomerName}</strong>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>{c.MobileNumber || 'No Mobile Number'}</div>
+                    </div>
+                    {hasPhone ? (
+                      <button
+                        type="button"
+                        onClick={() => openUndeliveredWhatsApp(c)}
+                        style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', fontWeight: 700, cursor: 'pointer', background: isSent ? '#dcfce7' : '#0f766e', color: isSent ? '#15803d' : '#fff' }}
+                      >
+                        {isSent ? '✓ Sent Again' : '💬 Send Telugu Msg'}
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>No Mobile</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
