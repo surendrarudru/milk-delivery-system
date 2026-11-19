@@ -286,6 +286,15 @@ function DeliveryEntry() {
   const undeliveredCount = Object.values(deliveries).filter(
     (item) => item.DeliveryStatus === 'Undelivered'
   ).length
+    function buildUndeliveredWaUrl(cust) {
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
+    if (clean.length < 10) return ''
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
+    const dateTe = deliveryDate.split('-').reverse().join('-')
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    return `https://wa.me91${clean}?text=${encodeURIComponent(text)}`
+  }
+
   function openUndeliveredWhatsApp(cust) {
     const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
     if (clean.length < 10) return alert('ఈ కస్టమర్‌కు సరైన మొబైల్ నంబర్ లేదు.')
@@ -410,6 +419,15 @@ function DeliveryEntry() {
               if (!item) return null
 
               const isUndelivered = item.DeliveryStatus === 'Undelivered'
+    function buildUndeliveredWaUrl(cust) {
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
+    if (clean.length < 10) return ''
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
+    const dateTe = deliveryDate.split('-').reverse().join('-')
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    return `https://wa.me91${clean}?text=${encodeURIComponent(text)}`
+  }
+
   function openUndeliveredWhatsApp(cust) {
     const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
     if (clean.length < 10) return alert('ఈ కస్టమర్‌కు సరైన మొబైల్ నంబర్ లేదు.')
@@ -669,13 +687,7 @@ function DeliveryEntry() {
             {nextWaCust ? (
               <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '12px', borderRadius: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <strong style={{ color: '#15803d' }}>Next: {nextWaCust.CustomerName}</strong>
-                <button
-                  type="button"
-                  onClick={() => openUndeliveredWhatsApp(nextWaCust)}
-                  style={{ padding: '8px 14px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  ▶ Send Next ({nextWaCust.CustomerName})
-                </button>
+                <a href={buildUndeliveredWaUrl(nextWaCust)} target="_blank" rel="noopener noreferrer" onClick={() => setWaSentIds(prev => ({ ...prev, [nextWaCust.CustomerID]: true }))} style={{ textDecoration: 'none', display: 'inline-block',  padding: '8px 14px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer'  }}>▶ Send Next ({nextWaCust.CustomerName})</a>
               </div>
             ) : (
               <div style={{ background: '#dcfce7', color: '#15803d', padding: '10px', borderRadius: '8px', fontWeight: 700, marginBottom: '12px' }}>
@@ -694,13 +706,7 @@ function DeliveryEntry() {
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{c.MobileNumber || 'No Mobile Number'}</div>
                     </div>
                     {hasPhone ? (
-                      <button
-                        type="button"
-                        onClick={() => openUndeliveredWhatsApp(c)}
-                        style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', fontWeight: 700, cursor: 'pointer', background: isSent ? '#dcfce7' : '#0f766e', color: isSent ? '#15803d' : '#fff' }}
-                      >
-                        {isSent ? '✓ Sent Again' : '💬 Send Telugu Msg'}
-                      </button>
+                      <a href={buildUndeliveredWaUrl(c)} target="_blank" rel="noopener noreferrer" onClick={() => setWaSentIds(prev => ({ ...prev, [c.CustomerID]: true }))} style={{ textDecoration: 'none', display: 'inline-block',  padding: '7px 12px', borderRadius: '7px', border: 'none', fontWeight: 700, cursor: 'pointer', background: isSent ? '#dcfce7' : '#0f766e', color: isSent ? '#15803d' : '#fff'  }}>{isSent ? '✓ Sent Again' : '💬 Send Telugu Msg'}</a>
                     ) : (
                       <span style={{ fontSize: '12px', color: '#94a3b8' }}>No Mobile</span>
                     )}

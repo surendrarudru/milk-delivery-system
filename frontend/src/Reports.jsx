@@ -71,7 +71,7 @@ export default function Reports() {
     const clean = String(customer.MobileNumber || '').replace(/\D/g, '')
     if (clean.length < 10) return alert('ఈ కస్టమర్‌కు మొబైల్ నంబర్ లేదు.')
     const text = 'నమస్తే *' + (customer.CustomerName || '') + '* గారు 🙏\nమీ పాల ఖాతాలో *' + fmtINR(dueAmt) + '* బకాయి (Pending Due) ఉంది. దయచేసి వీలైనంత త్వరగా చెల్లించగలరు. ధన్యవాదాలు! 🥛'
-    window.location.href = 'whatsapp://send?phone=91' + clean.slice(-10) + '&text=' + encodeURIComponent(text)
+    window.open('https://wa.me91' + clean.slice(-10) + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 
   function downloadBalancesCSV() {
