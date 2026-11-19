@@ -286,12 +286,15 @@ function DeliveryEntry() {
   const undeliveredCount = Object.values(deliveries).filter(
     (item) => item.DeliveryStatus === 'Undelivered'
   ).length
-    function buildUndeliveredWaUrl(cust) {
+      function buildUndeliveredWaUrl(cust) {
+    if (!cust) return 'https://whatsapp.com'
     const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
-    if (clean.length < 10) return ''
+    if (clean.length < 10) return 'https://whatsapp.com'
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
     const dateTe = deliveryDate.split('-').reverse().join('-')
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    return 'https://whatsapp.com?phone=91' + clean + '&text=' + encodeURIComponent(text)
+  }* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
     return `https://://whatsapp.com${clean}&text=${encodeURIComponent(text)}`
   }
 
@@ -419,12 +422,15 @@ function DeliveryEntry() {
               if (!item) return null
 
               const isUndelivered = item.DeliveryStatus === 'Undelivered'
-    function buildUndeliveredWaUrl(cust) {
+      function buildUndeliveredWaUrl(cust) {
+    if (!cust) return 'https://whatsapp.com'
     const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
-    if (clean.length < 10) return ''
+    if (clean.length < 10) return 'https://whatsapp.com'
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
     const dateTe = deliveryDate.split('-').reverse().join('-')
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    return 'https://whatsapp.com?phone=91' + clean + '&text=' + encodeURIComponent(text)
+  }* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
     return `https://://whatsapp.com${clean}&text=${encodeURIComponent(text)}`
   }
 
