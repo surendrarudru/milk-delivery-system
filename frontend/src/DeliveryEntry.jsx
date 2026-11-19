@@ -292,7 +292,7 @@ function DeliveryEntry() {
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
     const dateTe = deliveryDate.split('-').reverse().join('-')
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
-    return `https://wa.me91${clean}?text=${encodeURIComponent(text)}`
+    return `https://://whatsapp.com${clean}&text=${encodeURIComponent(text)}`
   }
 
   function openUndeliveredWhatsApp(cust) {
@@ -425,7 +425,7 @@ function DeliveryEntry() {
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
     const dateTe = deliveryDate.split('-').reverse().join('-')
     const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
-    return `https://wa.me91${clean}?text=${encodeURIComponent(text)}`
+    return `https://://whatsapp.com${clean}&text=${encodeURIComponent(text)}`
   }
 
   function openUndeliveredWhatsApp(cust) {
