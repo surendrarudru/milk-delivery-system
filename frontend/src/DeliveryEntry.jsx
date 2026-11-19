@@ -288,12 +288,14 @@ function DeliveryEntry() {
   ).length
 
   function buildUndeliveredWaUrl(cust) {
-    if (!cust) return 'https://api.whatsapp.com/send'
-    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
-    if (clean.length < 10) return 'https://api.whatsapp.com/send'
-    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
-    const dateTe = deliveryDate.split('-').reverse().join('-')
-    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
+    if (!cust) return '#';
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10);
+    if (clean.length < 10) return '#';
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం';
+    const dateTe = deliveryDate.split('-').reverse().join('-');
+    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`;
+    return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text);
+  }* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`
     return '=91' + clean + '&text=' + encodeURIComponent(text)
   }
 

@@ -43,7 +43,7 @@ export default function RouteManager({ session = 'Morning' }) {
     setSentIds(p => ({ ...p, [cust.CustomerID]: true }))
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
     const text = 'నమస్తే ' + (cust.CustomerName || '') + ' గారు, సుధీర్ మీ ' + shiftTe + ' పాల డెలివరీ కోసం బయలుదేరారు. దయచేసి పాలు కలెక్ట్ చేసుకోండి. 🥛🚚'
-    window.open('=' + phone + '&text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
+    window.open(['https:/', 'wa.me', phone].join('/') + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 
   const reachable = routeCustomers.filter(c => formatPhone(c.MobileNumber).length >= 10)
