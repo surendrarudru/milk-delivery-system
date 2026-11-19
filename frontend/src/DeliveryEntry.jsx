@@ -293,7 +293,7 @@ function DeliveryEntry() {
     if (clean.length < 10) return '#';
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం';
     const dateTe = deliveryDate.split('-').reverse().join('-');
-    const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! 🥛`;
+    const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered).\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు! \u{1F95B}`;
     return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text);
   }
   function openAllUndeliveredModal() {
