@@ -1,3 +1,4 @@
+from sqlalchemy.pool import NullPool
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
@@ -12,7 +13,7 @@ if os.getenv("RENDER") or os.getenv("DATABASE_URL"):
         database="postgres",
         query={"sslmode": "require"},
     )
-    engine = create_engine(pg_url, pool_size=3, max_overflow=1, pool_pre_ping=True, pool_recycle=300)
+    engine = create_engine(pg_url, poolclass=NullPool, pool_pre_ping=True, pool_recycle=300)
 else:
     SQL_SERVER_URL = (
         "mssql+pyodbc://localhost\\SQLEXPRESS/MilkDeliveryDB"
