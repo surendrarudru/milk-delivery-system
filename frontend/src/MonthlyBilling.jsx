@@ -140,7 +140,9 @@ export default function MonthlyBilling() {
     ctx.fillText(`📅 ${teMonthLabel} — నెలవారీ పాల సరఫరా నివేదిక`, 500, 344)
 
     const totalDays = new Date(year, month, 0).getDate()
-    const reportDateStr = `${String(totalDays).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`
+    const currNow = new Date()
+      const currMonthEnd = new Date(currNow.getFullYear(), currNow.getMonth() + 1, 0)
+      const reportDateStr = `${String(currMonthEnd.getDate()).padStart(2, '0')}-${String(currMonthEnd.getMonth() + 1).padStart(2, '0')}-${currMonthEnd.getFullYear()}`
     const pillsY = 379
 
     drawRoundedRect(ctx, 36, pillsY, 390, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
@@ -151,10 +153,12 @@ export default function MonthlyBilling() {
 
     drawRoundedRect(ctx, 438, pillsY, 232, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
     ctx.textAlign = 'center'
-    ctx.fillText(`నెల : ${teMonthLabel}`, 554, pillsY + 29)
+    ctx.fillStyle = '#1f2937'
+      ctx.fillText(`నెల : ${teMonthLabel}`, 554, pillsY + 29)
 
     drawRoundedRect(ctx, 682, pillsY, 282, 46, 12, 'rgba(255,253,247,0.92)', '#9ca3af')
-    ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, 823, pillsY + 29)
+    ctx.fillStyle = '#1f2937'
+      ctx.fillText(`రిపోర్ట్ తేదీ : ${reportDateStr}`, 823, pillsY + 29)
 
     const gridTop = 437
     const colW = 928 / 7
