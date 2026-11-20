@@ -70,7 +70,7 @@ export default function Reports() {
   function sendDueReminder(customer, dueAmt) {
     const clean = String(customer.MobileNumber || '').replace(/\D/g, '')
     if (clean.length < 10) return alert('ఈ కస్టమర్‌కు మొబైల్ నంబర్ లేదు.')
-    const text = 'నమస్తే *' + (customer.CustomerName || '') + '* గారు 🙏\nమీ పాల ఖాతాలో *' + fmtINR(dueAmt) + '* బకాయి (Pending Due) ఉంది. దయచేసి వీలైనంత త్వరగా చెల్లించగలరు. ధన్యవాదాలు! 🥛'
+    const text = `*పాల ఖాతా బకాయి రిమైండర్*\nనమస్తే *${customer.CustomerName || ''}* గారు, మీ ఖాతాలో ప్రస్తుత బకాయి ${fmtINR(dueAmt)} ఉంది. దయచేసి త్వరగా చెల్లించగలరు. ధన్యవాదాలు! \u{1F64F}`
     window.open(['https:/', 'wa.me', '91' + clean.slice(-10)].join('/') + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 

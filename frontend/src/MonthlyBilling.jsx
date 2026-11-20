@@ -282,7 +282,11 @@ export default function MonthlyBilling() {
       const clean = String(cust.MobileNumber || '').replace(/\D/g, '')
       if (clean.length < 10) return showNotice('Invalid customer mobile number.', true)
       const vpLine = Number(bill.VeenaPusaTotal || 0) > 0 ? `\n🧈 వెన్నపూస విలువ: ₹${Number(bill.VeenaPusaTotal).toFixed(2)}` : ''
-      const text = `నమస్తే *${cust.CustomerName}* గారు 🙏\nమీ *${teMonthLabel}* నెలవారీ పాల బిల్లు వివరాలు:\n\n🥛 మొత్తం పాలు: *${Number(p.milkQty.toFixed(2))} లీటర్లు*\n💰 లీటరు ధర: ₹${p.milkRate.toFixed(2)}\n🧾 ${teMonthLabel} పాల విలువ: ₹${Number(bill.MilkTotal || 0).toFixed(2)}${vpLine}\n📌 పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n\n💵 *చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}*\nధన్యవాదాలు!`
+      const prevM = month === 1 ? 12 : month - 1
+      const prevY = month === 1 ? year - 1 : year
+      const prevMonthLabel = `${TELUGU_MONTHS[prevM - 1]} ${prevY}`
+      const prevDueLine = p.prevTotal > 0.01 ? `${prevMonthLabel} \u{1F5D3}\u{FE0F} పాత బకాయి: ₹${p.prevTotal.toFixed(2)}\n` : ''
+      const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\n${teMonthLabel} \u{1F5D3}\u{FE0F} మీ పాల బిల్లు \u{1F9FE} వివరాలను పంపిస్తున్నాము:\n\u{1F95B} మొత్తం పాలు: ${Number(p.milkQty.toFixed(2))} లీటర్లు\n\u{1F4DD} ఈ నెల బిల్లు: ₹${Number(bill.MilkTotal || 0).toFixed(2)}${vpLine}\n${prevDueLine}\u{1F4CC} చెల్లించవలసిన మొత్తం: ₹${p.totalDue.toFixed(2)}\nదయచేసి సకాలంలో చెల్లించగలరు. ధన్యవాదాలు!`
       window.open(['https:/', 'wa.me', '91' + clean.slice(-10)].join('/') + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
     } catch (e) {
       showNotice('Share error: ' + e.message, true)

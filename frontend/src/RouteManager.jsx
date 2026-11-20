@@ -42,7 +42,7 @@ export default function RouteManager({ session = 'Morning' }) {
     if (!phone) return
     setSentIds(p => ({ ...p, [cust.CustomerID]: true }))
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
-    const text = 'నమస్తే ' + (cust.CustomerName || '') + ' గారు, సుధీర్ మీ ' + shiftTe + ' పాల డెలివరీ కోసం బయలుదేరారు. దయచేసి పాలు కలెక్ట్ చేసుకోండి. 🥛🚚'
+    const text = `నమస్తే *${cust.CustomerName || ''}* గారు \u{1F64F}\nమా డెలివరీ బాయ్ ఈరోజు ${shiftTe} పాలతో మీ రూట్‌లో బయలుదేరారు. మరికొద్ది నిమిషాల్లో మీ ఇంటికి చేరుకుంటారు. ధన్యవాదాలు! \u{1F6F5}\u{1F95B}`
     window.open(['https:/', 'wa.me', phone].join('/') + '?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 
