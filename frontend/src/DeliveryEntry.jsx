@@ -310,7 +310,7 @@ function DeliveryEntry() {
     const dateTe = deliveryDate.split('-').reverse().join('-')
     const whenTe = deliveryDate === today ? `ఈరోజు (${dateTe})` : `${dateTe} తేదీన`
     const changeTe = isExtra ? `అదనంగా *+${diff} లీటర్ల*` : `తక్కువగా *${diff} లీటర్ల*`
-    const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\n${whenTe} ${shiftTe} మీ సాధారణ కోటా (${defQty} లీ) కంటే ${changeTe} పాలు తీసుకున్నారు.\n\u{1F95B} మొత్తం డెలివరీ పాలు: *${totQty} లీటర్లు*\nధన్యవాదాలు!`
+    const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\n${whenTe} ${shiftTe} మీ సాధారణ కోటా (${defQty} లీ) కంటే ${changeTe} పాలు తీసుకున్నారు.\n\u{1F95B} మొత్తం డెలివరీ పాలు: *${totQty} లీటర్లు*\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు!`
     return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text)
   }
 
