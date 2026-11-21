@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
 const PROD_API = ['https:/', '://onrender.com'].join('/')
-const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : PROD_API)
+const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://' + 'milk-delivery-api-bn26' + '.onrender.com')
 
 const MODULE_STYLES = {
   'Daily Delivery': { bg: '#ccfbf1', fg: '#0f766e', icon: '🚚' },
