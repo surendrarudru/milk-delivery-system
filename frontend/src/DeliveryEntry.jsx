@@ -21,6 +21,8 @@ function DeliveryEntry() {
   const [reloadKey, setReloadKey] = useState(0)
   const [waModalList, setWaModalList] = useState([])
   const [waSentIds, setWaSentIds] = useState({})
+  const [qtyModalList, setQtyModalList] = useState([])
+  const [qtySentIds, setQtySentIds] = useState({})
 
   useEffect(() => {
     async function fetchDeliveryBoys() {
@@ -293,9 +295,39 @@ function DeliveryEntry() {
     if (clean.length < 10) return '#';
     const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం';
     const dateTe = deliveryDate.split('-').reverse().join('-');
-    const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\nఈరోజు (${dateTe}) ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered)\u{274C}\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు!`;
+    const whenTe = deliveryDate === today ? `ఈరోజు (${dateTe})` : `${dateTe} తేదీన`; const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\n${whenTe} ${shiftTe} పాల సరఫరా జరగలేదు (Undelivered)\u{274C}\nఏదైనా సందేహం ఉంటే మమ్మల్ని సంప్రదించండి. ధన్యవాదాలు!`;
     return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text);
   }
+  function buildQtyChangeWaUrl(cust) {
+    if (!cust) return '#'
+    const clean = String(cust.MobileNumber || '').replace(/\D/g, '').slice(-10)
+    if (clean.length < 10) return '#'
+    const defQty = Number(cust.DefaultMilkQuantity || 0)
+    const totQty = Number(cust.MilkQuantity || 0)
+    const diff = Number((totQty - defQty).toFixed(2))
+    const isExtra = diff > 0
+    const shiftTe = session === 'Morning' ? 'ఉదయం' : 'సాయంత్రం'
+    const dateTe = deliveryDate.split('-').reverse().join('-')
+    const whenTe = deliveryDate === today ? `ఈరోజు (${dateTe})` : `${dateTe} తేదీన`
+    const changeTe = isExtra ? `అదనంగా *+${diff} లీటర్ల*` : `తక్కువగా *${diff} లీటర్ల*`
+    const text = `నమస్తే *${cust.CustomerName}* గారు \u{1F64F}\n${whenTe} ${shiftTe} మీ సాధారణ కోటా (${defQty} లీ) కంటే ${changeTe} పాలు తీసుకున్నారు.\n\u{1F95B} మొత్తం డెలివరీ పాలు: *${totQty} లీటర్లు*\nధన్యవాదాలు!`
+    return ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(text)
+  }
+
+  const qtyChangedCustomers = customers
+    .filter(c => {
+      const it = deliveries[c.CustomerID]
+      const defQ = Number(c.DefaultMilkQuantity || 0)
+      return it?.DeliveryStatus === 'Delivered' && defQ > 0 && Number(it?.MilkQuantity || 0) !== defQ
+    })
+    .map(c => ({
+      ...c,
+      MilkQuantity: Number(deliveries[c.CustomerID]?.MilkQuantity || 0),
+      Diff: Number((Number(deliveries[c.CustomerID]?.MilkQuantity || 0) - Number(c.DefaultMilkQuantity || 0)).toFixed(2))
+    }))
+
+  const nextQtyCust = qtyModalList.find(c => String(c.MobileNumber || '').replace(/\D/g, '').length >= 10 && !qtySentIds[c.CustomerID])
+
   function openAllUndeliveredModal() {
     const list = customers
       .filter(c => deliveries[c.CustomerID]?.DeliveryStatus === 'Undelivered')
@@ -384,13 +416,25 @@ function DeliveryEntry() {
       </div>
 
       {undeliveredCount > 0 && (
-        <div style={{ marginBottom: '14px' }}>
+        <div style={{ marginBottom: '10px' }}>
           <button
             type="button"
             onClick={openAllUndeliveredModal}
             style={{ width: '100%', padding: '12px', background: '#15803d', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}
           >
             💬 Send Undelivered Telugu WhatsApp Alerts ({undeliveredCount})
+          </button>
+        </div>
+      )}
+
+      {qtyChangedCustomers.length > 0 && (
+        <div style={{ marginBottom: '14px' }}>
+          <button
+            type="button"
+            onClick={() => { setQtySentIds({}); setQtyModalList(qtyChangedCustomers) }}
+            style={{ width: '100%', padding: '12px', background: '#d97706', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}
+          >
+            🥛 Send Extra / Less Milk WhatsApp Alerts ({qtyChangedCustomers.length})
           </button>
         </div>
       )}
@@ -665,6 +709,46 @@ function DeliveryEntry() {
                     </div>
                     {hasPhone ? (
                       <a href={buildUndeliveredWaUrl(c)} target="_blank" rel="noopener noreferrer" onClick={() => setWaSentIds(prev => ({ ...prev, [c.CustomerID]: true }))} style={{ textDecoration: 'none', display: 'inline-block',  padding: '7px 12px', borderRadius: '7px', border: 'none', fontWeight: 700, cursor: 'pointer', background: isSent ? '#dcfce7' : '#0f766e', color: isSent ? '#15803d' : '#fff'  }}>{isSent ? '✓ Sent Again' : '💬 Send Telugu Msg'}</a>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>No Mobile</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {qtyModalList.length > 0 && (
+        <div className="customer-modal-overlay" onClick={() => setQtyModalList([])}>
+          <div className="customer-modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
+            <div className="customer-modal-header">
+              <h2>🥛 Extra / Less Milk WhatsApp Alerts ({qtyModalList.length})</h2>
+              <button type="button" onClick={() => setQtyModalList([])}>✕</button>
+            </div>
+            {nextQtyCust ? (
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', padding: '12px', borderRadius: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <strong style={{ color: '#b45309' }}>Next: {nextQtyCust.CustomerName} ({nextQtyCust.Diff > 0 ? `+${nextQtyCust.Diff}L` : `${nextQtyCust.Diff}L`})</strong>
+                <a href={buildQtyChangeWaUrl(nextQtyCust)} target="_blank" rel="noopener noreferrer" onClick={() => setQtySentIds(prev => ({ ...prev, [nextQtyCust.CustomerID]: true }))} style={{ textDecoration: 'none', padding: '8px 14px', background: '#d97706', color: '#fff', borderRadius: '8px', fontWeight: 700 }}>▶ Send Next ({nextQtyCust.CustomerName})</a>
+              </div>
+            ) : (
+              <div style={{ background: '#dcfce7', color: '#15803d', padding: '10px', borderRadius: '8px', fontWeight: 700, marginBottom: '12px' }}>
+                ✅ అందరి Extra / Less Milk customers కి WhatsApp alerts పూర్తయ్యాయి!
+              </div>
+            )}
+            <div style={{ display: 'grid', gap: '8px', maxHeight: '55vh', overflowY: 'auto' }}>
+              {qtyModalList.map((c, idx) => {
+                const hasPhone = String(c.MobileNumber || '').replace(/\D/g, '').length >= 10
+                const isSent = Boolean(qtySentIds[c.CustomerID])
+                const isExtra = c.Diff > 0
+                return (
+                  <div key={c.CustomerID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: isSent ? '#f0fdf4' : '#fff' }}>
+                    <div>
+                      <strong>{idx + 1}. {c.CustomerName}</strong> <span style={{ fontSize: '12px', fontWeight: 800, color: isExtra ? '#d97706' : '#0284c7' }}>({isExtra ? `+${c.Diff}L Extra` : `${c.Diff}L Less`})</span>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>Default: {c.DefaultMilkQuantity}L → Delivered: {c.MilkQuantity}L</div>
+                    </div>
+                    {hasPhone ? (
+                      <a href={buildQtyChangeWaUrl(c)} target="_blank" rel="noopener noreferrer" onClick={() => setQtySentIds(prev => ({ ...prev, [c.CustomerID]: true }))} style={{ textDecoration: 'none', padding: '7px 12px', borderRadius: '7px', fontWeight: 700, background: isSent ? '#dcfce7' : (isExtra ? '#d97706' : '#0284c7'), color: isSent ? '#15803d' : '#fff' }}>{isSent ? '✓ Sent Again' : '💬 Send Msg'}</a>
                     ) : (
                       <span style={{ fontSize: '12px', color: '#94a3b8' }}>No Mobile</span>
                     )}
