@@ -169,14 +169,33 @@ export default function MonthlyBilling() {
     const numRows = Math.ceil((firstDay + totalDays) / 7)
     const rowH = numRows === 6 ? 70 : 82
 
-    drawRoundedRect(ctx, 36, gridTop, 928, 44 + numRows * rowH, 12, 'rgba(255,253,247,0.88)', '#9ca3af')
+    drawRoundedRect(ctx, 36, gridTop, 928, 44 + numRows * rowH, 10, 'rgba(255,253,247,0.86)', '#9ca3af')
     TE_DAYS.forEach((d, i) => {
       ctx.fillStyle = i === 0 ? '#b91c1c' : '#144522'
       ctx.fillRect(36 + i * colW, gridTop, colW, 44)
       ctx.fillStyle = '#fff'
       ctx.font = '700 19px "Noto Sans Telugu", sans-serif'
+      ctx.textAlign = 'center'
       ctx.fillText(d, 36 + i * colW + colW / 2, gridTop + 29)
     })
+
+    // Draw crisp full-cell vertical & horizontal grid lines like sample template
+    ctx.strokeStyle = '#9ca3af'
+    ctx.lineWidth = 1.4
+    for (let c = 1; c < 7; c++) {
+      const lx = 36 + c * colW
+      ctx.beginPath()
+      ctx.moveTo(lx, gridTop)
+      ctx.lineTo(lx, gridTop + 44 + numRows * rowH)
+      ctx.stroke()
+    }
+    for (let r = 0; r < numRows; r++) {
+      const ly = gridTop + 44 + r * rowH
+      ctx.beginPath()
+      ctx.moveTo(36, ly)
+      ctx.lineTo(964, ly)
+      ctx.stroke()
+    }
 
     let calTotalQty = 0
     for (let day = 1; day <= totalDays; day++) {
@@ -192,23 +211,23 @@ export default function MonthlyBilling() {
         (dayObj?.Evening?.DeliveryStatus === 'Delivered' ? Number(dayObj.Evening.MilkQuantity || 0) : 0)
       calTotalQty += qty
 
+      ctx.textAlign = 'center'
       ctx.fillStyle = col === 0 ? '#b91c1c' : '#111827'
-      ctx.font = '700 20px sans-serif'
-      ctx.fillText(String(day), cx + colW / 2, cy + 27)
+      ctx.font = '800 22px sans-serif'
+      ctx.fillText(String(day), cx + colW / 2, cy + 29)
 
       if (qty > 0) {
-        drawRoundedRect(ctx, cx + 13, cy + rowH - 36, colW - 26, 27, 14, 'rgba(220,252,231,0.95)')
+        drawRoundedRect(ctx, cx + 14, cy + rowH - 35, colW - 28, 26, 13, '#dcfce7')
         ctx.fillStyle = '#14532d'
-        ctx.font = '700 16px "Noto Sans Telugu", sans-serif'
-        ctx.fillText(`${Number(qty.toFixed(2))} లీ`, cx + colW / 2, cy + rowH - 17)
+        ctx.font = '800 16px "Noto Sans Telugu", sans-serif'
+        ctx.fillText(`${Number(qty.toFixed(2))} లీ`, cx + colW / 2, cy + rowH - 16)
       } else if (dayObj?.Color === 'Red') {
-        drawRoundedRect(ctx, cx + 13, cy + rowH - 36, colW - 26, 27, 14, 'rgba(254,226,226,0.95)')
+        drawRoundedRect(ctx, cx + 14, cy + rowH - 35, colW - 28, 26, 13, '#fee2e2')
         ctx.fillStyle = '#b91c1c'
-        ctx.font = '700 16px "Noto Sans Telugu", sans-serif'
-        ctx.fillText('లేవు', cx + colW / 2, cy + rowH - 17)
+        ctx.font = '800 16px "Noto Sans Telugu", sans-serif'
+        ctx.fillText('లేవు', cx + colW / 2, cy + rowH - 16)
       }
     }
-
     const milkRate = Number(cust.MilkRate || 100)
     const milkQty = Number(calTotalQty > 0 ? calTotalQty : milkRate > 0 ? Number(bill.MilkTotal || 0) / milkRate : 0)
     const totalDue = Number(bill.TotalAmountDue || 0)
