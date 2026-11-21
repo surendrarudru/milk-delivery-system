@@ -635,6 +635,25 @@ def generate_monthly_bill(customer_id: int, year: int, month: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/billing/unfinalize/{bill_id}")
+def unfinalize_monthly_bill(bill_id: int):
+    try:
+        with engine.begin() as conn:
+            bill = conn.execute(text("SELECT bill_id, customer_id, bill_status FROM monthly_bills WHERE bill_id = :bid"), {"bid": bill_id}).fetchone()
+            if not bill:
+                raise HTTPException(404, "Bill not found")
+            conn.execute(text("""
+                DELETE FROM ledger_entries
+                WHERE customer_id = :cid AND reference_id = :bid AND entry_type = 'DEBIT' AND category IN ('Milk', 'VeenaPusa')
+            """), {"cid": bill.customer_id, "bid": bill.bill_id})
+            conn.execute(text("UPDATE monthly_bills SET bill_status = 'Generated' WHERE bill_id = :bid"), {"bid": bill.bill_id})
+        return {"message": "Bill unfinalized and removed from ledger!", "BillID": bill.bill_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.put("/billing/finalize/{bill_id}")
 def finalize_monthly_bill(bill_id: int):
     try:
