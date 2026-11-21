@@ -55,33 +55,69 @@ export default function PartnerPortal() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
     }
+    if (window._mmAudioPlayer) {
+      window._mmAudioPlayer.pause()
+      window._mmAudioPlayer = null
+    }
+    window._mmAudioStop = true
     setIsSpeaking(false)
   }
 
-  function speakTelugu(text) {
-    setVoiceReply(text)
-    if (!('speechSynthesis' in window)) return
-    window.speechSynthesis.cancel()
-
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'te-IN'
-    utter.pitch = 1.45
-    utter.rate = 0.96
-    utter.volume = 1.0
-
+  function speakWithBrowserFallback(text) {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false)
+      return
+    }
     const voices = window.speechSynthesis.getVoices()
     const teVoices = voices.filter(v => v.lang.toLowerCase().includes('te'))
     const femaleTeVoice =
       teVoices.find(v => /shruti|google|female|woman|girl|lekha|kalpana/i.test(v.name) && !/mohan|male|man/i.test(v.name)) ||
-      teVoices
+      teVoices[0]
 
+    const utter = new SpeechSynthesisUtterance(text)
     if (femaleTeVoice) utter.voice = femaleTeVoice
+    utter.lang = 'te-IN'
+    utter.pitch = 1.4
+    utter.rate = 0.96
     utter.onstart = () => setIsSpeaking(true)
     utter.onend = () => setIsSpeaking(false)
     utter.onerror = () => setIsSpeaking(false)
     window.speechSynthesis.speak(utter)
   }
 
+  function speakTelugu(text) {
+    setVoiceReply(text)
+    stopVoice()
+    window._mmAudioStop = false
+
+    const chunks = text
+      .split(/(?<=[.?!।])\s+/)
+      .flatMap(s => (s.length > 165 ? s.match(/.{1,165}(\s|$)/g) || [s] : [s]))
+      .map(s => s.trim())
+      .filter(Boolean)
+
+    if (!chunks.length) return
+
+    let idx = 0
+    setIsSpeaking(true)
+
+    const playNext = () => {
+      if (window._mmAudioStop || idx >= chunks.length) {
+        setIsSpeaking(false)
+        return
+      }
+      const url = `${API_URL}/tts/telugu?q=${encodeURIComponent(chunks[idx])}`
+      const audio = new Audio(url)
+      audio.playbackRate = 1.06
+      window._mmAudioPlayer = audio
+      idx += 1
+      audio.onended = playNext
+      audio.onerror = () => speakWithBrowserFallback(chunks.slice(idx - 1).join(' '))
+      audio.play().catch(() => speakWithBrowserFallback(chunks.slice(idx - 1).join(' ')))
+    }
+
+    playNext()
+  }
   function describeLogInTelugu(row) {
     const who = row.ActorRole === 'Admin' ? 'అడ్మిన్' : 'సుధీర్'
     const sm = row.ResolvedSummary || row.Summary || ''

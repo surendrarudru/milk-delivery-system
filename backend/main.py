@@ -1175,3 +1175,23 @@ def get_partner_dashboard(today_str: Optional[str] = None):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi.responses import Response
+import urllib.request
+
+@app.get("/tts/telugu")
+def tts_telugu(q: str):
+    clean_q = (q or "").strip()[:200]
+    if not clean_q:
+        raise HTTPException(status_code=400, detail="Text is required")
+    tts_url = (
+        "https://googleapis.com"
+        + urllib.parse.quote(clean_q)
+    )
+    req = urllib.request.Request(tts_url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            audio_bytes = resp.read()
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"TTS audio error: {e}")
