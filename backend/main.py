@@ -1177,21 +1177,94 @@ def get_partner_dashboard(today_str: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi.responses import Response
-import urllib.request
+import io, re
+from gtts import gTTS
+
+def _english_word_to_telugu(word: str) -> str:
+    w = word.lower()
+    if not re.fullmatch(r"[a-z]+", w):
+        return word
+
+    common_names = {
+        "manjula": "మంజుల", "vidya": "విద్య", "anitha": "అనిత", "koti": "కోటి",
+        "rajani": "రజని", "imran": "ఇమ్రాన్", "khan": "ఖాన్", "ayesha": "ఆయేషా",
+        "siva": "శివ", "parvathi": "పార్వతి", "madhu": "మధు", "sudheer": "సుధీర్",
+        "admin": "అడ్మిన్", "cash": "క్యాష్", "upi": "యూపీఐ", "syed": "సయ్యద్",
+        "zareena": "జరీనా", "ravi": "రవి", "kumar": "కుమార్", "lakshmi": "లక్ష్మి",
+        "devi": "దేవి", "reddy": "రెడ్డి", "rao": "రావు", "naidu": "నాయుడు",
+        "babu": "బాబు", "ramu": "రాము", "srinu": "శ్రీను", "venkat": "వెంకట్"
+    }
+    if w in common_names:
+        return common_names[w]
+
+    # Rule-based English-to-Telugu phonetic syllabifier for any remaining names
+    consonants = [
+        ("ksh", "క్ష"), ("sh", "ష"), ("ch", "చ"), ("th", "త"), ("dh", "ద"),
+        ("bh", "భ"), ("ph", "ఫ"), ("gh", "ఘ"), ("kh", "ఖ"), ("jh", "ఝ"),
+        ("ng", "ంగ"), ("nj", "ంజ"), ("k", "క"), ("g", "గ"), ("c", "క"),
+        ("j", "జ"), ("t", "ట"), ("d", "డ"), ("n", "న"), ("p", "ప"),
+        ("b", "బ"), ("m", "మ"), ("y", "య"), ("r", "ర"), ("l", "ల"),
+        ("v", "వ"), ("w", "వ"), ("s", "స"), ("h", "హ"), ("z", "జ"), ("f", "ఫ")
+    ]
+    matras = [
+        ("ee", "ీ"), ("ea", "ీ"), ("oo", "ూ"), ("ai", "ై"), ("au", "ౌ"),
+        ("ou", "ౌ"), ("aa", "ా"), ("a", ""), ("i", "ి"), ("e", "ె"),
+        ("u", "ు"), ("o", "ొ")
+    ]
+    indep_vowels = [
+        ("ee", "ఈ"), ("oo", "ఊ"), ("ai", "ఐ"), ("au", "ఔ"), ("aa", "ఆ"),
+        ("a", "అ"), ("i", "ఇ"), ("e", "ఎ"), ("u", "ఉ"), ("o", "ఒ")
+    ]
+
+    out = []
+    i = 0
+    while i < len(w):
+        matched_c = None
+        for eng, tel in consonants:
+            if w.startswith(eng, i):
+                matched_c = (eng, tel)
+                break
+        if matched_c:
+            i += len(matched_c[0])
+            matched_v = None
+            for veng, vtel in matras:
+                if w.startswith(veng, i):
+                    matched_v = (veng, vtel)
+                    break
+            if matched_v:
+                out.append(matched_c[1] + matched_v[1])
+                i += len(matched_v[0])
+            else:
+                out.append(matched_c[1] + ("్" if i < len(w) else ""))
+        else:
+            matched_iv = None
+            for veng, vtel in indep_vowels:
+                if w.startswith(veng, i):
+                    matched_iv = (veng, vtel)
+                    break
+            if matched_iv:
+                out.append(matched_iv[1])
+                i += len(matched_iv[0])
+            else:
+                out.append(w[i])
+                i += 1
+    return "".join(out)
+
+def _prepare_pure_telugu_tts(text: str) -> str:
+    # Convert English words/names into Telugu script so gTTS pronounces every word in pure Telugu
+    return re.sub(r"[A-Za-z]+", lambda m: _english_word_to_telugu(m.group(0)), text)
 
 @app.get("/tts/telugu")
 def tts_telugu(q: str):
-    clean_q = (q or "").strip()[:200]
+    clean_q = (q or "").strip()[:240]
     if not clean_q:
         raise HTTPException(status_code=400, detail="Text is required")
-    tts_url = (
-        "https://googleapis.com"
-        + urllib.parse.quote(clean_q)
-    )
-    req = urllib.request.Request(tts_url, headers={"User-Agent": "Mozilla/5.0"})
+    telugu_text = _prepare_pure_telugu_tts(clean_q)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            audio_bytes = resp.read()
-        return Response(content=audio_bytes, media_type="audio/mpeg")
+        buf = io.BytesIO()
+        tts = gTTS(text=telugu_text, lang="te", slow=False)
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return Response(content=buf.read(), media_type="audio/mpeg")
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"TTS audio error: {e}")
+        raise HTTPException(status_code=502, detail=f"Telugu TTS error: {e}")
