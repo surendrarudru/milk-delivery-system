@@ -654,21 +654,6 @@ def unfinalize_monthly_bill(bill_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.put("/billing/unfinalize/{bill_id}")
-def unfinalize_monthly_bill(bill_id: int):
-    try:
-        with engine.begin() as conn:
-            bill = conn.execute(text("SELECT bill_id, customer_id FROM monthly_bills WHERE bill_id = :bid"), {"bid": bill_id}).fetchone()
-            if not bill:
-                raise HTTPException(404, "Bill not found")
-            conn.execute(text("DELETE FROM ledger_entries WHERE customer_id = :cid AND reference_id = :bid AND entry_type = 'DEBIT' AND category IN ('Milk', 'VeenaPusa')"), {"cid": bill.customer_id, "bid": bill.bill_id})
-            conn.execute(text("UPDATE monthly_bills SET bill_status = 'Generated' WHERE bill_id = :bid"), {"bid": bill.bill_id})
-        return {"message": "Bill unfinalized!", "BillID": bill.bill_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.delete("/billing/reset-all/{year}/{month}")
 def reset_all_monthly_bills(year: int, month: int):
@@ -987,6 +972,11 @@ def describe_audit_action(method: str, path: str, body: dict):
     if path.startswith("/billing/finalize-all/"):
         parts = path.split("/")
         return "Monthly Bills", f"Finalized all bills for {parts[-1]}/{parts[-2]}"
+    if path.startswith("/billing/unfinalize/"):
+        return "Monthly Bills", f"Unfinalized Bill ID #{path.split('/')[-1]}"
+    if path.startswith("/billing/reset-all/"):
+        parts = path.split("/")
+        return "Monthly Bills", f"Cleared all bills for {parts[-1]}/{parts[-2]}"
     if path.startswith("/billing/finalize/"):
         return "Monthly Bills", f"Finalized Bill ID #{path.split('/')[-1]}"
     if path.startswith("/routes/") and path.endswith("/reorder"):

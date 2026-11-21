@@ -14,7 +14,7 @@ export function buildTeluguBillHTML({ customer, year, month, days, bill }) {
   let totalMilkQty = 0, totalVpAmount = 0
 
   ;(days || []).forEach(d => {
-    const dayNum = Number(String(d.Date).split('-'))
+    const dayNum = Number(String(d.Date).split('-')[2])
     const mQty = d.Morning?.DeliveryStatus === 'Delivered' ? Number(d.Morning.MilkQuantity || 0) : 0
     const eQty = d.Evening?.DeliveryStatus === 'Delivered' ? Number(d.Evening.MilkQuantity || 0) : 0
     const mVp = d.Morning?.DeliveryStatus === 'Delivered' ? Number(d.Morning.VeenaPusaAmount || 0) : 0
