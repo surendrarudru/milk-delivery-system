@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
-const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://onrender.com')
+const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://' + 'milk-delivery-api-bn26' + '.onrender.com')
 const getBestName = item => (item?.DisplayName || item?.ReferenceName || item?.CustomerName || '').trim()
 
 function BujjayiCalf({ speaking }) {
@@ -34,9 +34,7 @@ function BujjayiCalf({ speaking }) {
         <ellipse cx="83" cy="74" rx="3.5" ry="4.5" fill="#9f1239" />
         {speaking ? <ellipse cx="70" cy="85" rx="7" ry="5" fill="#be123c" /> : <path d="M56 83 Q70 92 84 83" stroke="#be123c" strokeWidth="2.8" fill="none" strokeLinecap="round" />}
       </svg>
-      <span style={{ position: 'absolute', bottom: '-6px', left: '50%', transform: 'translateX(-50%)', background: '#facc15', color: '#0f172a', fontSize: '12px', fontWeight: 900, padding: '2px 12px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
-        {speaking ? '🔊 చెబుతోంది...' : '👆 బుజ్జాయిని నొక్కండి'}
-      </span>
+      
     </div>
   )
 }
@@ -139,12 +137,10 @@ export default function PartnerPortal() {
             <BujjayiCalf speaking={isSpeaking} />
             <div>
               <span style={{ background: 'rgba(255,255,255,0.22)', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>
-                📅 ఈరోజు రిపోర్ట్ ({data?.DateFormatted || ''}) • Read-Only
+                📅 {data?.DateFormatted || ''}
               </span>
-              <h2 style={{ margin: '8px 0 4px', fontSize: '23px', fontWeight: 900, color: '#fff' }}>BujjiAyyi (బుజ్జాయి)</h2>
-              <p style={{ margin: 0, fontSize: '14.5px', color: '#ecfdf5', lineHeight: 1.45 }}>
-                బుజ్జాయి బొమ్మపై నొక్కితే ఈరోజు ఉదయం & సాయంత్రం పాలు, పేమెంట్లు (ఎవరు అప్‌డేట్ చేశారు), మరియు బకాయి కస్టమర్ల వివరాలు వినిపిస్తాయి.
-              </p>
+              <h2 style={{ margin: '8px 0 4px', fontSize: '23px', fontWeight: 900, color: '#fff' }}>BujjiAyyi</h2>
+              
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
