@@ -114,7 +114,7 @@ export default function PartnerPortal() {
     const dueList = data.DueCustomers || []
     const dueAmt = Math.round(Number(data.TotalDueAmount || 0))
 
-    const milkSentence = `నమస్తే! నేను బుజ్జాయిని. ఈరోజు ఉదయం ${mLiters} లీటర్ల పాలు, సాయంత్రం ${eLiters} లీటర్ల పాలు డెలివరీ అయ్యాయి.`
+    const milkSentence = `ఈరోజు ఉదయం ${mLiters} లీటర్ల పాలు, సాయంత్రం ${eLiters} లీటర్ల పాలు డెలివరీ అయ్యాయి.`
     const paySentence = todayPays.length === 0
       ? 'ఈరోజు ఇప్పటివరకు ఎలాంటి పేమెంట్లు రాలేదు.'
       : `ఈరోజు ${todayPays.length} మంది నుండి మొత్తం ${payAmt} రూపాయల పేమెంట్ వచ్చింది. వివరాలు: ${todayPays.map(p => `${getBestName(p)} ${Math.round(p.TotalPaid)} రూపాయలు ఇచ్చారు, దీనిని ${p.UpdatedBy === 'Admin' ? 'అడ్మిన్' : 'సుధీర్'} అప్‌డేట్ చేశారు`).join('. ')}.`
@@ -141,7 +141,7 @@ export default function PartnerPortal() {
               <span style={{ background: 'rgba(255,255,255,0.22)', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>
                 📅 ఈరోజు రిపోర్ట్ ({data?.DateFormatted || ''}) • Read-Only
               </span>
-              <h2 style={{ margin: '8px 0 4px', fontSize: '23px', fontWeight: 900, color: '#fff' }}>బుజ్జాయి (Bujjayi) వాయిస్ అసిస్టెంట్</h2>
+              <h2 style={{ margin: '8px 0 4px', fontSize: '23px', fontWeight: 900, color: '#fff' }}>BujjiAyyi (బుజ్జాయి)</h2>
               <p style={{ margin: 0, fontSize: '14.5px', color: '#ecfdf5', lineHeight: 1.45 }}>
                 బుజ్జాయి బొమ్మపై నొక్కితే ఈరోజు ఉదయం & సాయంత్రం పాలు, పేమెంట్లు (ఎవరు అప్‌డేట్ చేశారు), మరియు బకాయి కస్టమర్ల వివరాలు వినిపిస్తాయి.
               </p>
@@ -149,7 +149,7 @@ export default function PartnerPortal() {
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {isSpeaking && <button type="button" onClick={stopVoice} style={{ padding: '14px 18px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '14px', fontWeight: 900, fontSize: '15px', cursor: 'pointer' }}>⏹ ఆపండి</button>}
-            <button type="button" onClick={loadTodayReport} disabled={loading} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '14px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}>{loading ? 'లోడ్...' : '↻ రిఫ్రెష్'}</button>
+            <button type="button" onClick={() => loadTodayReport(1)} disabled={loading} style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '14px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}>{loading ? 'లోడ్...' : '↻ రిఫ్రెష్'}</button>
           </div>
         </div>
       </div>
