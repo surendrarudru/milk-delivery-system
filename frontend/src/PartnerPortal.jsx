@@ -134,7 +134,7 @@ export default function PartnerPortal() {
       <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f766e 100%)', color: '#fff', padding: '22px', borderRadius: '22px', boxShadow: '0 8px 24px rgba(6,78,59,0.22)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div onClick={playOneTapTodayBriefing} style={{ display: 'flex', alignItems: 'center', gap: '18px', flex: 1, minWidth: '260px', cursor: 'pointer' }}>
-            <BujjayiCalf speaking={isSpeaking} />
+            <img src="/bujjayi.png" alt="BujjiAyyi" style={{ width: "112px", height: "112px", objectFit: "contain", borderRadius: "50%", background: "#fff", padding: "6px", border: isSpeaking ? "5px solid #facc15" : "4px solid rgba(255,255,255,0.85)", boxShadow: "0 8px 22px rgba(0,0,0,0.28)" }} />
             <div>
               <span style={{ background: 'rgba(255,255,255,0.22)', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>
                 📅 {data?.DateFormatted || ''}
