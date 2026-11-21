@@ -679,11 +679,11 @@ function DeliveryEntry() {
         </div>
       )}
       {waModalList.length > 0 && (
-        <div className="customer-modal-overlay" onClick={() => setWaModalList([])}>
+        <div className="customer-modal-overlay" onClick={() => { setWaModalList([]); if (window._pendingQtyAlerts?.length) { setQtySentIds({}); setQtyModalList(window._pendingQtyAlerts); window._pendingQtyAlerts = null } }}>
           <div className="customer-modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
             <div className="customer-modal-header">
               <h2>💬 Undelivered Telugu WhatsApp Alerts ({waModalList.length})</h2>
-              <button type="button" onClick={() => setWaModalList([])}>✕</button>
+              <button type="button" onClick={() => { setWaModalList([]); if (window._pendingQtyAlerts?.length) { setQtySentIds({}); setQtyModalList(window._pendingQtyAlerts); window._pendingQtyAlerts = null } }}>✕</button>
             </div>
 
             {nextWaCust ? (
