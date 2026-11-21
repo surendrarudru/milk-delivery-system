@@ -803,3 +803,215 @@ def get_reports_monthly_overview(year: int, month: int):
         return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # ==========================================
+# ADMIN AUTH & AUTOMATIC AUDIT TRAIL (IST)
+# ==========================================
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from datetime import datetime, timezone
+import hashlib, hmac
+
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "MilkManager_Secure_2026_Key")
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def _hash_pin(pin: str) -> str:
+    return hashlib.sha256(f"{ADMIN_SECRET}:{pin.strip()}".encode()).hexdigest()
+
+def make_admin_token(user_id: int, username: str, full_name: str, role: str) -> str:
+    payload = base64.urlsafe_b64encode(json.dumps({"id": user_id, "u": username, "n": full_name, "r": role}).encode()).decode()
+    sig = hmac.new(ADMIN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
+    return f"{payload}.{sig}"
+
+def verify_admin_token(token: str):
+    if not token or "." not in token:
+        return None
+    payload, sig = token.rsplit(".", 1)
+    expected = hmac.new(ADMIN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
+    if not hmac.compare_digest(sig, expected):
+        return None
+    try:
+        return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
+    except Exception:
+        return None
+
+def init_security_tables():
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS admin_users (
+                    user_id SERIAL PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    full_name VARCHAR(100) NOT NULL,
+                    role VARCHAR(30) NOT NULL DEFAULT 'Staff',
+                    pin_hash VARCHAR(128) NOT NULL,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    log_id SERIAL PRIMARY KEY,
+                    actor_name VARCHAR(100) NOT NULL,
+                    actor_role VARCHAR(30) NOT NULL,
+                    action_type VARCHAR(30) NOT NULL,
+                    module_name VARCHAR(60) NOT NULL,
+                    summary TEXT NOT NULL,
+                    details TEXT,
+                    created_at VARCHAR(40) NOT NULL
+                )
+            """))
+            cnt = conn.execute(text("SELECT COUNT(*) FROM admin_users")).scalar_one()
+            if cnt == 0:
+                conn.execute(text("""
+                    INSERT INTO admin_users (username, full_name, role, pin_hash, is_active)
+                    VALUES
+                      ('admin', 'Surendra (Owner)', 'Owner', :p1, TRUE),
+                      ('staff', 'Sudheer (Staff)', 'Staff', :p2, TRUE)
+                """), {"p1": _hash_pin("1234"), "p2": _hash_pin("1111")})
+    except Exception as e:
+        print("Security table init warning:", e)
+
+init_security_tables()
+
+def describe_audit_action(method: str, path: str, body: dict):
+    if path.startswith("/customers") and method == "POST":
+        return "Customer Master", f"Added customer {body.get('CustomerName', '')} ({body.get('CustomerCode', '')})"
+    if path.startswith("/customers/") and method == "PUT":
+        return "Customer Master", f"Updated customer ID #{path.split('/')[-1]} ({body.get('CustomerName', 'Details')})"
+    if path.startswith("/customers/") and method == "DELETE":
+        return "Customer Master", f"Deleted customer ID #{path.split('/')[-1]}"
+    if path == "/delivery/save":
+        return "Daily Delivery", f"Saved {body.get('Session')} deliveries for {body.get('DeliveryDate')} ({len(body.get('Deliveries', []))} entries)"
+    if "/complete" in path:
+        parts = path.split("/")
+        return "Daily Delivery", f"Completed & locked {parts[-2]} session for {parts[-3]}"
+    if path.startswith("/delivery/correction/"):
+        return "Delivery Correction", f"Corrected delivery record #{path.split('/')[-1]} -> {body.get('DeliveryStatus')} ({body.get('MilkQuantity', 0)}L)"
+    if path == "/payments":
+        return "Payments", f"Recorded ₹{body.get('TotalAmount', 0)} ({body.get('PaymentMode', 'Cash')}) for Customer ID #{body.get('CustomerID')}"
+    if path.startswith("/billing/generate-all/"):
+        parts = path.split("/")
+        return "Monthly Bills", f"Generated all bills for {parts[-1]}/{parts[-2]}"
+    if path.startswith("/billing/generate/"):
+        parts = path.split("/")
+        return "Monthly Bills", f"Generated bill for Customer ID #{parts[-3]} ({parts[-1]}/{parts[-2]})"
+    if path.startswith("/billing/finalize-all/"):
+        parts = path.split("/")
+        return "Monthly Bills", f"Finalized all bills for {parts[-1]}/{parts[-2]}"
+    if path.startswith("/billing/finalize/"):
+        return "Monthly Bills", f"Finalized Bill ID #{path.split('/')[-1]}"
+    if path.startswith("/routes/") and path.endswith("/reorder"):
+        return "Route Order", f"Reordered {path.split('/')[-2]} delivery route"
+    if path.startswith("/admin/users"):
+        return "Admin Security", f"Updated admin/staff account ({body.get('username', '')})"
+    return "System Update", f"{method} {path}"
+
+@app.middleware("http")
+async def admin_security_and_audit_middleware(request: Request, call_next):
+    path = request.url.path
+    method = request.method.upper()
+
+    if method == "OPTIONS" or path in ["/", "/health", "/auth/admin-login", "/docs", "/openapi.json"]:
+        return await call_next(request)
+
+    token = request.headers.get("X-Admin-Token", "")
+    user = verify_admin_token(token)
+
+    if method in ["POST", "PUT", "DELETE"] or path.startswith("/admin/"):
+        if not user:
+            return JSONResponse(status_code=401, content={"detail": "Admin login required. Please sign in to make changes."})
+
+    raw_body = b""
+    body_dict = {}
+    if method in ["POST", "PUT", "DELETE"]:
+        raw_body = await request.body()
+        if raw_body:
+            try:
+                body_dict = json.loads(raw_body.decode("utf-8"))
+            except Exception:
+                body_dict = {}
+
+        async def receive():
+            return {"type": "http.request", "body": raw_body, "more_body": False}
+        request._receive = receive
+
+    response = await call_next(request)
+
+    if method in ["POST", "PUT", "DELETE"] and 200 <= response.status_code < 300 and user:
+        try:
+            module_name, summary = describe_audit_action(method, path, body_dict if isinstance(body_dict, dict) else {})
+            safe_details = json.dumps(body_dict, ensure_ascii=False)[:900] if body_dict else ""
+            ist_now = datetime.now(IST).strftime("%d-%m-%Y %I:%M:%S %p IST")
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    INSERT INTO audit_logs (actor_name, actor_role, action_type, module_name, summary, details, created_at)
+                    VALUES (:an, :ar, :at, :mn, :sm, :dt, :ca)
+                """), {
+                    "an": user.get("n", "Admin"),
+                    "ar": user.get("r", "Admin"),
+                    "at": method,
+                    "mn": module_name,
+                    "sm": summary,
+                    "dt": safe_details,
+                    "ca": ist_now
+                })
+        except Exception as e:
+            print("Audit log write warning:", e)
+
+    return response
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    pin: str
+
+class AdminUserCreate(BaseModel):
+    username: str
+    full_name: str
+    role: str = "Staff"
+    pin: str
+
+@app.post("/auth/admin-login")
+def admin_login(req: AdminLoginRequest):
+    with engine.connect() as conn:
+        row = conn.execute(text("""
+            SELECT user_id, username, full_name, role, pin_hash, is_active
+            FROM admin_users WHERE LOWER(username) = LOWER(:u)
+        """), {"u": req.username.strip()}).fetchone()
+    if not row or not row.is_active or row.pin_hash != _hash_pin(req.pin):
+        raise HTTPException(status_code=401, detail="Invalid Username or PIN")
+    token = make_admin_token(row.user_id, row.username, row.full_name, row.role)
+    return {"token": token, "username": row.username, "full_name": row.full_name, "role": row.role}
+
+@app.get("/admin/audit-logs")
+def get_audit_logs(limit: int = 150):
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT log_id AS "LogID", actor_name AS "ActorName", actor_role AS "ActorRole",
+                   action_type AS "ActionType", module_name AS "ModuleName",
+                   summary AS "Summary", details AS "Details", created_at AS "CreatedAt"
+            FROM audit_logs ORDER BY log_id DESC LIMIT :lim
+        """), {"lim": limit}).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+@app.get("/admin/users")
+def list_admin_users():
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT user_id AS "UserID", username AS "Username", full_name AS "FullName",
+                   role AS "Role", is_active AS "IsActive"
+            FROM admin_users ORDER BY user_id
+        """)).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+@app.post("/admin/users")
+def create_or_update_admin_user(req: AdminUserCreate):
+    if len(req.pin.strip()) < 4:
+        raise HTTPException(status_code=400, detail="PIN must be at least 4 digits")
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO admin_users (username, full_name, role, pin_hash, is_active)
+            VALUES (:u, :fn, :r, :ph, TRUE)
+            ON CONFLICT (username) DO UPDATE
+            SET full_name = EXCLUDED.full_name, role = EXCLUDED.role, pin_hash = EXCLUDED.pin_hash, is_active = TRUE
+        """), {"u": req.username.strip().lower(), "fn": req.full_name.strip(), "r": req.role, "ph": _hash_pin(req.pin)})
+    return {"message": f"User {req.full_name} saved successfully"}
