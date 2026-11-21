@@ -1043,66 +1043,45 @@ def create_or_update_admin_user(req: AdminUserCreate):
 
 @app.get("/partner/dashboard")
 def get_partner_dashboard(today_str: Optional[str] = None):
-    target_date = date.fromisoformat(today_str) if today_str else datetime.now(IST).date()
+    target_date = datetime.now(IST).date()
     date_prefix = target_date.strftime("%d-%m-%Y")
     try:
         with engine.connect() as conn:
-            custs = conn.execute(text("""
-                SELECT customer_id, customer_code, customer_name, reference_name, mobile_number, is_active
-                FROM customers ORDER BY customer_id
-            """)).fetchall()
-            def _best_name(cname, rname):
-                r = (rname or "").strip()
-                return r if r else (cname or "")
-            cust_name_map = {c.customer_id: f"{_best_name(c.customer_name, c.reference_name)} ({c.customer_code})" for c in custs}
+            custs = conn.execute(text("SELECT customer_id, customer_code, customer_name, reference_name FROM customers ORDER BY customer_id")).fetchall()
+            best_name = lambda cn, rn: (rn or "").strip() or (cn or "")
 
             deliv_rows = conn.execute(text("""
-                SELECT COALESCE(ds.session_type, dd.session_type) AS session_type,
+                SELECT COALESCE(ds.session_type, dd.session_type) AS st,
                        COALESCE(SUM(CASE WHEN LOWER(dd.delivery_status) = 'delivered' THEN dd.milk_quantity ELSE 0 END), 0) AS litres,
-                       COUNT(*) FILTER (WHERE LOWER(dd.delivery_status) = 'delivered') AS delivered_cnt
+                       COUNT(*) FILTER (WHERE LOWER(dd.delivery_status) = 'delivered') AS cnt
                 FROM delivery_details dd
                 LEFT JOIN delivery_sessions ds ON dd.session_id = ds.session_id
                 WHERE COALESCE(ds.delivery_date, dd.delivery_date) = :td
                 GROUP BY COALESCE(ds.session_type, dd.session_type)
             """), {"td": target_date}).fetchall()
 
-            morning_litres = 0.0
-            evening_litres = 0.0
-            morning_count = 0
-            evening_count = 0
-            for dr in deliv_rows:
-                if str(dr.session_type).lower() == "morning":
-                    morning_litres = float(dr.litres or 0)
-                    morning_count = int(dr.delivered_cnt or 0)
-                elif str(dr.session_type).lower() == "evening":
-                    evening_litres = float(dr.litres or 0)
-                    evening_count = int(dr.delivered_cnt or 0)
+            m_litres = sum(float(r.litres or 0) for r in deliv_rows if str(r.st).lower() == "morning")
+            e_litres = sum(float(r.litres or 0) for r in deliv_rows if str(r.st).lower() == "evening")
+            m_cnt = sum(int(r.cnt or 0) for r in deliv_rows if str(r.st).lower() == "morning")
+            e_cnt = sum(int(r.cnt or 0) for r in deliv_rows if str(r.st).lower() == "evening")
 
-            led = conn.execute(text("""
-                SELECT customer_id, category, entry_type, COALESCE(SUM(amount), 0) AS tot
-                FROM ledger_entries GROUP BY customer_id, category, entry_type
-            """)).fetchall()
-
+            led = conn.execute(text("SELECT customer_id, category, entry_type, COALESCE(SUM(amount), 0) AS tot FROM ledger_entries GROUP BY customer_id, category, entry_type")).fetchall()
             bal_map = {}
             for r in led:
                 b = bal_map.setdefault(r.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
                 val = Decimal(str(r.tot or 0))
                 b[r.category] = b.get(r.category, Decimal("0")) + (val if r.entry_type == "DEBIT" else -val)
 
-            due_customers = []
-            total_due = Decimal("0")
+            due_customers, total_due = [], Decimal("0")
             for c in custs:
                 bals = bal_map.get(c.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
                 due = sum(max(v, Decimal("0")) for v in bals.values())
                 if due > 0:
                     total_due += due
                     due_customers.append({
-                        "CustomerID": c.customer_id,
-                        "CustomerCode": c.customer_code,
-                        "CustomerName": c.customer_name,
-                        "ReferenceName": c.reference_name or "",
-                        "DisplayName": _best_name(c.customer_name, c.reference_name),
-                        "MobileNumber": c.mobile_number or "-",
+                        "CustomerID": c.customer_id, "CustomerCode": c.customer_code,
+                        "CustomerName": c.customer_name, "ReferenceName": c.reference_name or "",
+                        "DisplayName": best_name(c.customer_name, c.reference_name),
                         "OpeningDue": float(max(bals["OpeningBalance"], Decimal("0"))),
                         "MilkDue": float(max(bals["Milk"], Decimal("0"))),
                         "VeenaPusaDue": float(max(bals["VeenaPusa"], Decimal("0"))),
@@ -1112,73 +1091,41 @@ def get_partner_dashboard(today_str: Optional[str] = None):
 
             pay_rows = conn.execute(text("""
                 SELECT p.payment_id, p.customer_id, c.customer_code, c.customer_name, c.reference_name,
-                       p.payment_date, p.payment_mode, p.total_paid, p.notes
-                FROM customer_payments p
-                INNER JOIN customers c ON p.customer_id = c.customer_id
-                WHERE p.payment_date = :td
-                ORDER BY p.payment_id DESC
+                       p.payment_mode, p.total_paid, p.notes
+                FROM customer_payments p INNER JOIN customers c ON p.customer_id = c.customer_id
+                WHERE p.payment_date = :td ORDER BY p.payment_id DESC
             """), {"td": target_date}).fetchall()
 
-            date_audit_rows = conn.execute(text("""
-                SELECT log_id AS "LogID", actor_role AS "ActorRole", action_type AS "ActionType",
-                       module_name AS "ModuleName", summary AS "Summary",
-                       details AS "Details", created_at AS "CreatedAt"
-                FROM audit_logs
-                WHERE created_at LIKE :dp
-                ORDER BY log_id DESC LIMIT 100
-            """), {"dp": f"{date_prefix}%"}).fetchall()
+            pay_audits = conn.execute(text("SELECT actor_role, details, created_at FROM audit_logs WHERE module_name = 'Payments' ORDER BY log_id DESC LIMIT 200")).fetchall()
 
-            audit_rows = conn.execute(text("""
-                SELECT log_id AS "LogID", actor_role AS "ActorRole", action_type AS "ActionType",
-                       module_name AS "ModuleName", summary AS "Summary",
-                       details AS "Details", created_at AS "CreatedAt"
-                FROM audit_logs
-                WHERE module_name IN ('Payments', 'Monthly Bills', 'Daily Delivery', 'Delivery Correction')
-                ORDER BY log_id DESC LIMIT 120
-            """)).fetchall()
+        actor_lookup = {}
+        for a in pay_audits:
+            try:
+                d = json.loads(a.details or "{}")
+                k = (int(d.get("CustomerID")), round(float(d.get("TotalAmount", 0)), 2))
+                if k not in actor_lookup:
+                    actor_lookup[k] = {"UpdatedBy": a.actor_role, "UpdatedAt": a.created_at}
+            except Exception:
+                pass
 
-        today_payments = [
-            {
-                "PaymentID": r.payment_id,
-                "CustomerID": r.customer_id,
-                "CustomerCode": r.customer_code,
-                "CustomerName": r.customer_name,
-                "ReferenceName": r.reference_name or "",
-                "DisplayName": _best_name(r.customer_name, r.reference_name),
-                "PaymentDate": str(r.payment_date),
-                "PaymentMode": r.payment_mode,
-                "TotalPaid": float(r.total_paid or 0),
-                "Notes": r.notes or ""
-            }
-            for r in pay_rows
-        ]
-
-        def resolve_logs(rows):
-            out = []
-            for a in rows:
-                item = dict(a._mapping)
-                sm = item.get("Summary", "")
-                for cid, label in cust_name_map.items():
-                    sm = sm.replace(f"Customer ID #{cid}", label)
-                item["ResolvedSummary"] = sm
-                out.append(item)
-            return out
+        today_payments = []
+        for r in pay_rows:
+            paid = round(float(r.total_paid or 0), 2)
+            info = actor_lookup.get((r.customer_id, paid), {"UpdatedBy": "User", "UpdatedAt": ""})
+            today_payments.append({
+                "PaymentID": r.payment_id, "CustomerCode": r.customer_code,
+                "CustomerName": r.customer_name, "ReferenceName": r.reference_name or "",
+                "DisplayName": best_name(r.customer_name, r.reference_name),
+                "PaymentMode": r.payment_mode, "TotalPaid": paid,
+                "UpdatedBy": info["UpdatedBy"], "UpdatedAt": info["UpdatedAt"]
+            })
 
         return {
-            "Date": str(target_date),
-            "DateFormatted": date_prefix,
-            "MorningMilkLiters": morning_litres,
-            "MorningDeliveredCount": morning_count,
-            "EveningMilkLiters": evening_litres,
-            "EveningDeliveredCount": evening_count,
-            "DueCustomerCount": len(due_customers),
-            "TotalDueAmount": float(total_due),
-            "DueCustomers": due_customers,
-            "TodayPaymentCount": len(today_payments),
-            "TodayCollectedAmount": sum(p["TotalPaid"] for p in today_payments),
-            "TodayPayments": today_payments,
-            "DateAuditLogs": resolve_logs(date_audit_rows),
-            "PaymentAuditLogs": resolve_logs(audit_rows)
+            "DateFormatted": date_prefix, "MorningMilkLiters": m_litres, "MorningDeliveredCount": m_cnt,
+            "EveningMilkLiters": e_litres, "EveningDeliveredCount": e_cnt,
+            "DueCustomerCount": len(due_customers), "TotalDueAmount": float(total_due),
+            "DueCustomers": due_customers, "TodayPaymentCount": len(today_payments),
+            "TodayCollectedAmount": sum(p["TotalPaid"] for p in today_payments), "TodayPayments": today_payments
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
