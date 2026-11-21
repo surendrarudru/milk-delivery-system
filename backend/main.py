@@ -1,13 +1,16 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from decimal import Decimal
 import asyncio
 import base64
 import calendar
+import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -26,7 +29,7 @@ from database import engine
 from customer_models import CustomerCreate, CustomerUpdate, PaymentCreate
 from delivery_models import DeliverySaveRequest
 
-app = FastAPI(title="Milk Delivery Management System", version="3.1.0")
+app = FastAPI(title="Milk Delivery Management System", version="3.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -118,8 +121,6 @@ def get_customer(customer_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/customers")
 def add_customer(customer: CustomerCreate):
     try:
@@ -203,6 +204,7 @@ def delete_customer(customer_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/routes/{session}")
 def get_routes(session: str):
@@ -626,6 +628,8 @@ async def start_auto_alert(session_type: str, payload: dict):
 @app.post("/delivery/session/notify-undelivered")
 async def notify_undelivered_deliveries(payload: dict):
     return {"status": "desktop_only"}
+
+
 @app.get("/customers-summary")
 def get_customers_summary():
     try:
@@ -667,6 +671,7 @@ def get_customers_summary():
         return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/billing/monthly-summary/{year}/{month}")
 def get_monthly_billing_summary(year: int, month: int):
     try:
@@ -758,6 +763,7 @@ def finalize_all_monthly_bills(year: int, month: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/reports/monthly-overview/{year}/{month}")
 def get_reports_monthly_overview(year: int, month: int):
     sd = date(year, month, 1)
@@ -803,24 +809,24 @@ def get_reports_monthly_overview(year: int, month: int):
         return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # ==========================================
-# ADMIN AUTH & AUTOMATIC AUDIT TRAIL (IST)
 # ==========================================
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from datetime import datetime, timezone
-import hashlib, hmac
-
+# REDESIGNED 3-ROLE SECURITY & AUDIT ENGINE
+# ==========================================
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "MilkManager_Secure_2026_Key")
 IST = timezone(timedelta(hours=5, minutes=30))
+
 
 def _hash_pin(pin: str) -> str:
     return hashlib.sha256(f"{ADMIN_SECRET}:{pin.strip()}".encode()).hexdigest()
 
+
 def make_admin_token(user_id: int, username: str, full_name: str, role: str) -> str:
-    payload = base64.urlsafe_b64encode(json.dumps({"id": user_id, "u": username, "n": full_name, "r": role}).encode()).decode()
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"id": user_id, "u": username, "n": full_name, "r": role}).encode()
+    ).decode()
     sig = hmac.new(ADMIN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
     return f"{payload}.{sig}"
+
 
 def verify_admin_token(token: str):
     if not token or "." not in token:
@@ -833,6 +839,7 @@ def verify_admin_token(token: str):
         return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
     except Exception:
         return None
+
 
 def init_security_tables():
     try:
@@ -862,18 +869,19 @@ def init_security_tables():
             """))
             conn.execute(text("UPDATE admin_users SET full_name = 'Admin', role = 'Admin' WHERE username = 'admin'"))
             conn.execute(text("UPDATE admin_users SET full_name = 'User', role = 'User' WHERE username IN ('staff', 'user')"))
-            cnt = conn.execute(text("SELECT COUNT(*) FROM admin_users")).scalar_one()
-            if cnt == 0:
-                conn.execute(text("""
-                    INSERT INTO admin_users (username, full_name, role, pin_hash, is_active)
-                    VALUES
-                      ('admin', 'Admin', 'Admin', :p1, TRUE),
-                      ('staff', 'User', 'User', :p2, TRUE)
-                """), {"p1": _hash_pin("1234"), "p2": _hash_pin("1111")})
+            conn.execute(text("""
+                INSERT INTO admin_users (username, full_name, role, pin_hash, is_active)
+                VALUES
+                  ('admin', 'Admin', 'Admin', :p1, TRUE),
+                  ('staff', 'User', 'User', :p2, TRUE)
+                ON CONFLICT (username) DO NOTHING
+            """), {"p1": _hash_pin("1234"), "p2": _hash_pin("1111")})
     except Exception as e:
-        print("Security table init warning:", e)
+        print("Security init warning:", e)
+
 
 init_security_tables()
+
 
 def describe_audit_action(method: str, path: str, body: dict):
     if path.startswith("/customers") and method == "POST":
@@ -905,15 +913,16 @@ def describe_audit_action(method: str, path: str, body: dict):
     if path.startswith("/routes/") and path.endswith("/reorder"):
         return "Route Order", f"Reordered {path.split('/')[-2]} delivery route"
     if path.startswith("/admin/users"):
-        return "Admin Security", f"Updated admin/staff account ({body.get('username', '')})"
+        return "Admin Security", f"Updated access PIN for {body.get('username', '')}"
     return "System Update", f"{method} {path}"
+
 
 @app.middleware("http")
 async def admin_security_and_audit_middleware(request: Request, call_next):
     path = request.url.path
     method = request.method.upper()
 
-    if method == "OPTIONS" or path in ["/", "/health", "/auth/admin-login", "/docs", "/openapi.json"]:
+    if method == "OPTIONS" or path in ["/", "/health", "/auth/admin-login", "/partner/dashboard", "/docs", "/openapi.json"]:
         return await call_next(request)
 
     token = request.headers.get("X-Admin-Token", "")
@@ -921,7 +930,17 @@ async def admin_security_and_audit_middleware(request: Request, call_next):
 
     if method in ["POST", "PUT", "DELETE"] or path.startswith("/admin/"):
         if not user:
-            return JSONResponse(status_code=401, content={"detail": "Admin login required. Please sign in to make changes."})
+            return JSONResponse(status_code=401, content={"detail": "Admin or User PIN login required to modify records."})
+
+    if method in ["POST", "PUT", "DELETE"] and user and user.get("r") == "User":
+        allowed_user_writes = (
+            path == "/delivery/save"
+            or path.endswith("/complete")
+            or path == "/payments"
+            or path == "/customers"
+        )
+        if not allowed_user_writes:
+            return JSONResponse(status_code=403, content={"detail": "Restricted: Only Admin can edit rates, bills, or settings."})
 
     raw_body = b""
     body_dict = {}
@@ -961,16 +980,17 @@ async def admin_security_and_audit_middleware(request: Request, call_next):
             print("Audit log write warning:", e)
 
     return response
-
 class AdminLoginRequest(BaseModel):
     username: str
     pin: str
+
 
 class AdminUserCreate(BaseModel):
     username: str
     full_name: str
     role: str = "User"
     pin: str
+
 
 @app.post("/auth/admin-login")
 def admin_login(req: AdminLoginRequest):
@@ -984,8 +1004,9 @@ def admin_login(req: AdminLoginRequest):
     token = make_admin_token(row.user_id, row.username, row.full_name, row.role)
     return {"token": token, "username": row.username, "full_name": row.full_name, "role": row.role}
 
+
 @app.get("/admin/audit-logs")
-def get_audit_logs(limit: int = 150):
+def get_audit_logs(limit: int = 200):
     with engine.connect() as conn:
         rows = conn.execute(text("""
             SELECT log_id AS "LogID", actor_name AS "ActorName", actor_role AS "ActorRole",
@@ -994,6 +1015,7 @@ def get_audit_logs(limit: int = 150):
             FROM audit_logs ORDER BY log_id DESC LIMIT :lim
         """), {"lim": limit}).fetchall()
     return [dict(r._mapping) for r in rows]
+
 
 @app.get("/admin/users")
 def list_admin_users():
@@ -1004,6 +1026,7 @@ def list_admin_users():
             FROM admin_users ORDER BY user_id
         """)).fetchall()
     return [dict(r._mapping) for r in rows]
+
 
 @app.post("/admin/users")
 def create_or_update_admin_user(req: AdminUserCreate):
@@ -1016,4 +1039,113 @@ def create_or_update_admin_user(req: AdminUserCreate):
             ON CONFLICT (username) DO UPDATE
             SET full_name = EXCLUDED.full_name, role = EXCLUDED.role, pin_hash = EXCLUDED.pin_hash, is_active = TRUE
         """), {"u": req.username.strip().lower(), "fn": req.full_name.strip(), "r": req.role, "ph": _hash_pin(req.pin)})
-    return {"message": f"User {req.full_name} saved successfully"}
+    return {"message": f"Access PIN saved for {req.full_name}"}
+
+
+@app.get("/partner/dashboard")
+def get_partner_dashboard(today_str: Optional[str] = None):
+    target_date = date.fromisoformat(today_str) if today_str else datetime.now(IST).date()
+    m_start = date(target_date.year, target_date.month, 1)
+    m_end = date(target_date.year + 1, 1, 1) if target_date.month == 12 else date(target_date.year, target_date.month + 1, 1)
+    try:
+        with engine.connect() as conn:
+            custs = conn.execute(text("""
+                SELECT customer_id, customer_code, customer_name, mobile_number, is_active
+                FROM customers ORDER BY customer_id
+            """)).fetchall()
+            cust_name_map = {c.customer_id: f"{c.customer_name} ({c.customer_code})" for c in custs}
+
+            led = conn.execute(text("""
+                SELECT customer_id, category, entry_type, COALESCE(SUM(amount), 0) AS tot
+                FROM ledger_entries GROUP BY customer_id, category, entry_type
+            """)).fetchall()
+
+            bal_map = {}
+            for r in led:
+                b = bal_map.setdefault(r.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
+                val = Decimal(str(r.tot or 0))
+                b[r.category] = b.get(r.category, Decimal("0")) + (val if r.entry_type == "DEBIT" else -val)
+
+            due_customers = []
+            total_due = Decimal("0")
+            for c in custs:
+                bals = bal_map.get(c.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
+                due = sum(max(v, Decimal("0")) for v in bals.values())
+                if due > 0:
+                    total_due += due
+                    due_customers.append({
+                        "CustomerID": c.customer_id,
+                        "CustomerCode": c.customer_code,
+                        "CustomerName": c.customer_name,
+                        "MobileNumber": c.mobile_number or "-",
+                        "OpeningDue": float(max(bals["OpeningBalance"], Decimal("0"))),
+                        "MilkDue": float(max(bals["Milk"], Decimal("0"))),
+                        "VeenaPusaDue": float(max(bals["VeenaPusa"], Decimal("0"))),
+                        "TotalDue": float(due)
+                    })
+            due_customers.sort(key=lambda x: x["TotalDue"], reverse=True)
+
+            rev_row = conn.execute(text("""
+                SELECT COALESCE(SUM(milk_quantity), 0) AS mq,
+                       COALESCE(SUM(milk_quantity * milk_rate), 0) AS ma,
+                       COALESCE(SUM(venna_pusa_quantity * venna_pusa_rate), 0) AS va
+                FROM delivery_details
+                WHERE delivery_date >= :sd AND delivery_date < :ed
+            """), {"sd": m_start, "ed": m_end}).fetchone()
+
+            pay_rows = conn.execute(text("""
+                SELECT p.payment_id, p.customer_id, c.customer_code, c.customer_name,
+                       p.payment_date, p.payment_mode, p.total_paid, p.notes
+                FROM customer_payments p
+                INNER JOIN customers c ON p.customer_id = c.customer_id
+                WHERE p.payment_date = :td
+                ORDER BY p.payment_id DESC
+            """), {"td": target_date}).fetchall()
+
+            audit_rows = conn.execute(text("""
+                SELECT log_id AS "LogID", actor_role AS "ActorRole", action_type AS "ActionType",
+                       module_name AS "ModuleName", summary AS "Summary",
+                       details AS "Details", created_at AS "CreatedAt"
+                FROM audit_logs
+                WHERE module_name IN ('Payments', 'Monthly Bills')
+                ORDER BY log_id DESC LIMIT 120
+            """)).fetchall()
+
+        today_payments = [
+            {
+                "PaymentID": r.payment_id,
+                "CustomerID": r.customer_id,
+                "CustomerCode": r.customer_code,
+                "CustomerName": r.customer_name,
+                "PaymentDate": str(r.payment_date),
+                "PaymentMode": r.payment_mode,
+                "TotalPaid": float(r.total_paid or 0),
+                "Notes": r.notes or ""
+            }
+            for r in pay_rows
+        ]
+
+        formatted_audits = []
+        for a in audit_rows:
+            item = dict(a._mapping)
+            sm = item.get("Summary", "")
+            for cid, label in cust_name_map.items():
+                sm = sm.replace(f"Customer ID #{cid}", label)
+            item["ResolvedSummary"] = sm
+            formatted_audits.append(item)
+
+        return {
+            "Date": str(target_date),
+            "MonthYear": f"{target_date.month:02d}-{target_date.year}",
+            "MonthMilkLiters": float(rev_row.mq or 0),
+            "MonthRevenue": float((rev_row.ma or 0) + (rev_row.va or 0)),
+            "DueCustomerCount": len(due_customers),
+            "TotalDueAmount": float(total_due),
+            "DueCustomers": due_customers,
+            "TodayPaymentCount": len(today_payments),
+            "TodayCollectedAmount": sum(p["TotalPaid"] for p in today_payments),
+            "TodayPayments": today_payments,
+            "PaymentAuditLogs": formatted_audits
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
