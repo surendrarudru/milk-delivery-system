@@ -654,6 +654,37 @@ def unfinalize_monthly_bill(bill_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.put("/billing/unfinalize/{bill_id}")
+def unfinalize_monthly_bill(bill_id: int):
+    try:
+        with engine.begin() as conn:
+            bill = conn.execute(text("SELECT bill_id, customer_id FROM monthly_bills WHERE bill_id = :bid"), {"bid": bill_id}).fetchone()
+            if not bill:
+                raise HTTPException(404, "Bill not found")
+            conn.execute(text("DELETE FROM ledger_entries WHERE customer_id = :cid AND reference_id = :bid AND entry_type = 'DEBIT' AND category IN ('Milk', 'VeenaPusa')"), {"cid": bill.customer_id, "bid": bill.bill_id})
+            conn.execute(text("UPDATE monthly_bills SET bill_status = 'Generated' WHERE bill_id = :bid"), {"bid": bill.bill_id})
+        return {"message": "Bill unfinalized!", "BillID": bill.bill_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/billing/reset-all/{year}/{month}")
+def reset_all_monthly_bills(year: int, month: int):
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                DELETE FROM ledger_entries
+                WHERE entry_type = 'DEBIT' AND category IN ('Milk', 'VeenaPusa')
+                  AND reference_id IN (SELECT bill_id FROM monthly_bills WHERE bill_year = :y AND bill_month = :m)
+            """), {"y": year, "m": month})
+            res = conn.execute(text("DELETE FROM monthly_bills WHERE bill_year = :y AND bill_month = :m"), {"y": year, "m": month})
+        return {"message": f"Cleared {res.rowcount} bills!", "deleted": res.rowcount}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.put("/billing/finalize/{bill_id}")
 def finalize_monthly_bill(bill_id: int):
     try:
