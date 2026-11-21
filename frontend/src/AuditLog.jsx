@@ -9,7 +9,7 @@ export default function AuditLog({ currentUser }) {
   const [search, setSearch] = useState('')
   const [moduleFilter, setModuleFilter] = useState('All')
   const [loading, setLoading] = useState(false)
-  const [userForm, setUserForm] = useState({ username: '', full_name: '', role: 'Staff', pin: '' })
+  const [userForm, setUserForm] = useState({ username: '', full_name: '', role: 'User', pin: '' })
   const [msg, setMsg] = useState('')
 
   async function loadAll() {
@@ -39,7 +39,7 @@ export default function AuditLog({ currentUser }) {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return setMsg(data.detail || 'Failed to save user')
     setMsg(data.message || 'User saved!')
-    setUserForm({ username: '', full_name: '', role: 'Staff', pin: '' })
+    setUserForm({ username: '', full_name: '', role: 'User', pin: '' })
     loadAll()
   }
 
@@ -92,7 +92,7 @@ export default function AuditLog({ currentUser }) {
                 <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: '#475569' }}>{row.CreatedAt}</td>
                 <td style={{ padding: '11px 12px', whiteSpace: 'nowrap' }}>
                   <strong>{row.ActorName}</strong>
-                  <span style={{ marginLeft: '6px', fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: row.ActorRole === 'Owner' ? '#dcfce7' : '#e0f2fe', color: row.ActorRole === 'Owner' ? '#15803d' : '#0369a1', fontWeight: 700 }}>{row.ActorRole}</span>
+                  <span style={{ marginLeft: '6px', fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: row.ActorRole === 'Admin' ? '#dcfce7' : '#e0f2fe', color: row.ActorRole === 'Admin' ? '#15803d' : '#0369a1', fontWeight: 700 }}>{row.ActorRole}</span>
                 </td>
                 <td style={{ padding: '11px 12px', whiteSpace: 'nowrap' }}><span style={{ padding: '3px 9px', borderRadius: '6px', background: '#f1f5f9', fontWeight: 700, fontSize: '12px' }}>{row.ModuleName}</span></td>
                 <td style={{ padding: '11px 12px', color: '#0f172a', fontWeight: 600 }}>{row.Summary}</td>
@@ -102,16 +102,16 @@ export default function AuditLog({ currentUser }) {
         </table>
       </div>
 
-      {currentUser?.role === 'Owner' && (
+      {currentUser?.role === 'Admin' && (
         <div style={{ background: '#fff', padding: '20px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginTop: 0 }}>🔑 Manage Admin & Staff Access PINs</h3>
+          <h3 style={{ marginTop: 0 }}>🔑 Manage Admin & User Access PINs</h3>
           {msg && <div style={{ padding: '10px', background: '#dcfce7', color: '#15803d', borderRadius: '8px', marginBottom: '12px', fontWeight: 600 }}>{msg}</div>}
           <form onSubmit={saveUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', marginBottom: '14px' }}>
             <input required placeholder="Username (e.g. sudheer)" value={userForm.username} onChange={e => setUserForm({ ...userForm, username: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
             <input required placeholder="Full Name (e.g. Sudheer)" value={userForm.full_name} onChange={e => setUserForm({ ...userForm, full_name: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
             <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-              <option value="Staff">Staff</option>
-              <option value="Owner">Owner</option>
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
             </select>
             <input required type="password" placeholder="New PIN (4+ digits)" value={userForm.pin} onChange={e => setUserForm({ ...userForm, pin: e.target.value })} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
             <button type="submit" style={{ padding: '10px 16px', background: '#0f4c2e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>Save User PIN</button>

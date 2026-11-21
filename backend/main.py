@@ -842,7 +842,7 @@ def init_security_tables():
                     user_id SERIAL PRIMARY KEY,
                     username VARCHAR(50) UNIQUE NOT NULL,
                     full_name VARCHAR(100) NOT NULL,
-                    role VARCHAR(30) NOT NULL DEFAULT 'Staff',
+                    role VARCHAR(30) NOT NULL DEFAULT 'User',
                     pin_hash VARCHAR(128) NOT NULL,
                     is_active BOOLEAN NOT NULL DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -860,13 +860,15 @@ def init_security_tables():
                     created_at VARCHAR(40) NOT NULL
                 )
             """))
+            conn.execute(text("UPDATE admin_users SET full_name = 'Admin', role = 'Admin' WHERE username = 'admin'"))
+            conn.execute(text("UPDATE admin_users SET full_name = 'User', role = 'User' WHERE username IN ('staff', 'user')"))
             cnt = conn.execute(text("SELECT COUNT(*) FROM admin_users")).scalar_one()
             if cnt == 0:
                 conn.execute(text("""
                     INSERT INTO admin_users (username, full_name, role, pin_hash, is_active)
                     VALUES
-                      ('admin', 'Surendra (Owner)', 'Owner', :p1, TRUE),
-                      ('staff', 'Sudheer (Staff)', 'Staff', :p2, TRUE)
+                      ('admin', 'Admin', 'Admin', :p1, TRUE),
+                      ('staff', 'User', 'User', :p2, TRUE)
                 """), {"p1": _hash_pin("1234"), "p2": _hash_pin("1111")})
     except Exception as e:
         print("Security table init warning:", e)
@@ -967,7 +969,7 @@ class AdminLoginRequest(BaseModel):
 class AdminUserCreate(BaseModel):
     username: str
     full_name: str
-    role: str = "Staff"
+    role: str = "User"
     pin: str
 
 @app.post("/auth/admin-login")

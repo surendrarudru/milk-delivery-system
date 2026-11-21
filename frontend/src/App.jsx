@@ -135,8 +135,8 @@ export default function App() {
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '5px' }}>Select Account *</label>
               <select value={loginForm.username} onChange={e => setLoginForm({ ...loginForm, username: e.target.value })} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontWeight: 700 }}>
-                <option value="admin">Surendra (Owner)</option>
-                <option value="staff">Sudheer (Staff)</option>
+                <option value="admin">Admin</option>
+                <option value="staff">User</option>
               </select>
             </div>
             <div>
