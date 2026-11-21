@@ -138,7 +138,26 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
             <div className="dh-detail-row"><span>Veena Pusa Amount</span><strong>₹{record.VeenaPusaAmount ?? 0}</strong></div>
             <div className="dh-detail-row dh-total-row"><span>Total Amount</span><strong>₹{record.TotalAmount ?? 0}</strong></div>
             {record.Notes && <div className="dh-notes"><span>Notes:</span> {record.Notes}</div>}
-            <button type="button" className="dh-edit-button" onClick={() => startEdit(record)}>✎ Edit Delivery</button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+              <button type="button" className="dh-edit-button" onClick={() => startEdit(record)}>✎ Edit Delivery</button>
+              {record.DeliveryStatus === 'Delivered' && Number(customer.DefaultMilkQuantity || 0) > 0 && Number(record.MilkQuantity || 0) !== Number(customer.DefaultMilkQuantity || 0) && (() => {
+                const defQty = Number(customer.DefaultMilkQuantity || 0)
+                const totQty = Number(record.MilkQuantity || 0)
+                const diff = Number((totQty - defQty).toFixed(2))
+                const isExtra = diff > 0
+                const clean = String(customer.MobileNumber || '').replace(/\D/g, '').slice(-10)
+                const shiftTe = record.Session === 'Evening' ? 'సాయంత్రం' : 'ఉదయం'
+                const dateTe = formatDate(selectedDate)
+                const changeTe = isExtra ? `అదనంగా *+${diff} లీటర్ల*` : `తక్కువగా *${diff} లీటర్ల*`
+                const msg = `నమస్తే *${customer.CustomerName}* గారు \u{1F64F}\n${dateTe} తేదీన ${shiftTe} మీ సాధారణ కోటా (${defQty} లీ) కంటే ${changeTe} పాలు తీసుకున్నారు.\n\u{1F95B} మొత్తం డెలివరీ పాలు: *${totQty} లీటర్లు*\nధన్యవాదాలు!`
+                const waHref = clean.length >= 10 ? ['https:/', 'wa.me', '91' + clean].join('/') + '?text=' + encodeURIComponent(msg) : '#'
+                return clean.length >= 10 ? (
+                  <a href={waHref} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', padding: '8px 12px', background: isExtra ? '#d97706' : '#0284c7', color: '#fff', borderRadius: '7px', fontSize: '13px', fontWeight: 700 }}>
+                    {isExtra ? `➕ Extra (+${diff}L) WA` : `➖ Less (${diff}L) WA`}
+                  </a>
+                ) : null
+              })()}
+            </div>
           </>
         )}
       </div>
