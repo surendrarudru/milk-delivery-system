@@ -80,6 +80,20 @@ export function buildTeluguBillHTML({ customer, year, month, days, bill }) {
         .sum-card.highlight .sum-val { color:#b45309; font-size:16px; }
         .footer-note { margin:0 14px 12px; padding:8px 12px; background:#f0fdf4; border:1.5px solid #86efac; border-radius:9px; font-size:11.5px; font-weight:800; color:#14532d; text-align:center; }
         .bottom-strip { height:34px; background:linear-gradient(90deg,#15803d 0%,#0f4c2e 100%); display:flex; align-items:center; justify-content:center; color:#ecfdf5; font-size:11.5px; font-weight:800; }
+              .cal-grid { display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 4px !important; padding: 6px !important; background: #f8fafc !important; border: 1.5px solid #94a3b8 !important; border-radius: 8px !important; }
+        .cal-grid > div, .cal-cell, .day-cell, .cal-box {
+          border: 1.6px solid #94a3b8 !important;
+          border-radius: 7px !important;
+          background: #ffffff !important;
+          padding: 4px 2px !important;
+          min-height: 48px !important;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.06) !important;
+        }
+        .cal-grid > div span:first-child, .day-num, .dt-num {
+          font-size: 15.5px !important;
+          font-weight: 900 !important;
+          color: #0f172a !important;
+        }
       </style>
       <div class="top-hero">
         <img class="hero-bg" src="/farm-header.jpg" alt="" onerror="this.style.display='none'" />
