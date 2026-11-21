@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
 const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://' + 'milk-delivery-api-bn26' + '.onrender.com')
 
+const getLabel = c => (c?.DisplayName || c?.ReferenceName || c?.CustomerName || '').trim()
 const getTodayISO = () => new Date().toLocaleDateString('en-CA')
 const getYesterdayISO = () => {
   const d = new Date()
@@ -159,7 +160,7 @@ export default function PartnerPortal() {
     // 2. Payments received on that date
     const payPart = payCount === 0
       ? `${dateLabel} ఎలాంటి పేమెంట్లు రాలేదు.`
-      : `${dateLabel} ${payCount} మంది నుండి మొత్తం ${payAmt} రూపాయల పేమెంట్ వచ్చింది. ఇచ్చినవారు: ${todayPays.map(p => `${p.CustomerName} ${Math.round(p.TotalPaid)} రూపాయలు`).join(', ')}.`
+      : `${dateLabel} ${payCount} మంది నుండి మొత్తం ${payAmt} రూపాయల పేమెంట్ వచ్చింది. ఇచ్చినవారు: ${todayPays.map(p => `${getLabel(p)} ${Math.round(p.TotalPaid)} రూపాయలు`).join(', ')}.`
 
     // 3. Updates on that date
     const updatePart = dateLogs.length === 0
@@ -169,7 +170,7 @@ export default function PartnerPortal() {
     // 4. All customers with due amount
     const duePart = dueList.length === 0
       ? 'ప్రస్తుతం ఏ కస్టమర్‌కు బకాయి లేదు.'
-      : `మొత్తం ${dueList.length} మంది కస్టమర్లకు కలిపి ${dueAmt} రూపాయల బకాయి ఉంది. బకాయి ఇవ్వవలసిన వారు: ${dueList.map((c, i) => `${i + 1}. ${c.CustomerName} ${Math.round(c.TotalDue)} రూపాయలు`).join(', ')}.`
+      : `మొత్తం ${dueList.length} మంది కస్టమర్లకు కలిపి ${dueAmt} రూపాయల బకాయి ఉంది. బకాయి ఇవ్వవలసిన వారు: ${dueList.map((c, i) => `${i + 1}. ${getLabel(c)} ${Math.round(c.TotalDue)} రూపాయలు`).join(', ')}.`
 
     speakTelugu(`నమస్తే! ${milkPart} ${payPart} ${updatePart} ${duePart}`)
   }
@@ -181,7 +182,7 @@ export default function PartnerPortal() {
       return speakTelugu('ప్రస్తుతం ఏ కస్టమర్‌కు బకాయి లేదు.')
     }
     const spokenList = dueList
-      .map((c, idx) => `${idx + 1}. ${c.CustomerName} — ${Math.round(c.TotalDue)} రూపాయలు`)
+      .map((c, idx) => `${idx + 1}. ${getLabel(c)} — ${Math.round(c.TotalDue)} రూపాయలు`)
       .join('. ')
     speakTelugu(`బకాయి ఉన్న ${dueList.length} మంది పేర్లు: ${spokenList}.`)
   }
@@ -200,12 +201,12 @@ export default function PartnerPortal() {
     const todayPays = data.TodayPayments || []
     const dateLogs = data.DateAuditLogs || []
 
-    const matchedCust = dueList.find(c => q.includes((c.CustomerName || '').toLowerCase()))
+    const matchedCust = dueList.find(c => (q.includes((c.ReferenceName || '').toLowerCase()) && (c.ReferenceName || '').trim() !== '') || q.includes((c.CustomerName || '').toLowerCase()))
     if (matchedCust) {
       setActiveTab('dues')
-      setSearch(matchedCust.CustomerName)
+      setSearch(getLabel(matchedCust))
       return speakTelugu(
-        `${matchedCust.CustomerName} గారి ఖాతాలో మొత్తం ${Math.round(matchedCust.TotalDue)} రూపాయల బకాయి ఉంది.`
+        `${getLabel(matchedCust)} గారి ఖాతాలో మొత్తం ${Math.round(matchedCust.TotalDue)} రూపాయల బకాయి ఉంది.`
       )
     }
 
@@ -234,7 +235,7 @@ export default function PartnerPortal() {
       if (payCount === 0) {
         return speakTelugu('ఈ తేదీన ఎలాంటి పేమెంట్ నమోదు కాలేదు.')
       }
-      const names = todayPays.map(p => `${p.CustomerName} ${Math.round(p.TotalPaid)} రూపాయలు`).join(', ')
+      const names = todayPays.map(p => `${getLabel(p)} ${Math.round(p.TotalPaid)} రూపాయలు`).join(', ')
       return speakTelugu(
         `ఈ తేదీన ${payCount} మంది నుండి ${payAmt} రూపాయలు వచ్చాయి. పేర్లు: ${names}.`
       )
@@ -286,7 +287,7 @@ export default function PartnerPortal() {
   }
 
   const dueList = (data?.DueCustomers || []).filter(c =>
-    !search.trim() || [c.CustomerName, c.CustomerCode].some(v => (v || '').toLowerCase().includes(search.toLowerCase().trim()))
+    !search.trim() || [c.ReferenceName, c.CustomerName, c.CustomerCode].some(v => (v || '').toLowerCase().includes(search.toLowerCase().trim()))
   )
   const todayPays = data?.TodayPayments || []
   const dateAuditLogs = data?.DateAuditLogs || []
@@ -506,7 +507,7 @@ export default function PartnerPortal() {
                 <div key={p.PaymentID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '16px', borderRadius: '14px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                   <div>
                     <div style={{ fontSize: '19px', fontWeight: 800, color: '#0f172a' }}>
-                      {idx + 1}. {p.CustomerName} <span style={{ fontSize: '14px', color: '#475569' }}>({p.CustomerCode})</span>
+                      {idx + 1}. {getLabel(p)} <span style={{ fontSize: '14px', color: '#475569' }}>({p.CustomerCode})</span>
                     </div>
                     <div style={{ fontSize: '15px', color: '#166534', fontWeight: 700, marginTop: '4px' }}>
                       విధానం: {p.PaymentMode === 'Cash' ? 'నగదు (Cash)' : p.PaymentMode} {p.Notes ? `• గమనిక: ${p.Notes}` : ''}
@@ -554,12 +555,12 @@ export default function PartnerPortal() {
               {dueList.map((c, idx) => (
                 <div
                   key={c.CustomerID}
-                  onClick={() => speakTelugu(`${c.CustomerName} గారి బకాయి ${Math.round(c.TotalDue)} రూపాయలు.`)}
+                  onClick={() => speakTelugu(`${getLabel(c)} గారి బకాయి ${Math.round(c.TotalDue)} రూపాయలు.`)}
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '16px', borderRadius: '14px', background: '#fffbeb', border: '1px solid #fde68a', cursor: 'pointer' }}
                 >
                   <div>
                     <div style={{ fontSize: '19px', fontWeight: 800, color: '#0f172a' }}>
-                      {idx + 1}. {c.CustomerName} <span style={{ fontSize: '14px', color: '#64748b' }}>({c.CustomerCode})</span>
+                      {idx + 1}. {getLabel(c)} <span style={{ fontSize: '14px', color: '#64748b' }}>({c.CustomerCode})</span>
                     </div>
                     <div style={{ fontSize: '14.5px', color: '#475569', fontWeight: 600, marginTop: '4px' }}>
                       పాత బకాయి: ₹{Math.round(c.OpeningDue)} • పాలు: ₹{Math.round(c.MilkDue)} • వెన్నపూస: ₹{Math.round(c.VeenaPusaDue)}

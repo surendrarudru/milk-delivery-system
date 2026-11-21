@@ -1048,10 +1048,13 @@ def get_partner_dashboard(today_str: Optional[str] = None):
     try:
         with engine.connect() as conn:
             custs = conn.execute(text("""
-                SELECT customer_id, customer_code, customer_name, mobile_number, is_active
+                SELECT customer_id, customer_code, customer_name, reference_name, mobile_number, is_active
                 FROM customers ORDER BY customer_id
             """)).fetchall()
-            cust_name_map = {c.customer_id: f"{c.customer_name} ({c.customer_code})" for c in custs}
+            def _best_name(cname, rname):
+                r = (rname or "").strip()
+                return r if r else (cname or "")
+            cust_name_map = {c.customer_id: f"{_best_name(c.customer_name, c.reference_name)} ({c.customer_code})" for c in custs}
 
             deliv_rows = conn.execute(text("""
                 SELECT COALESCE(ds.session_type, dd.session_type) AS session_type,
@@ -1097,6 +1100,8 @@ def get_partner_dashboard(today_str: Optional[str] = None):
                         "CustomerID": c.customer_id,
                         "CustomerCode": c.customer_code,
                         "CustomerName": c.customer_name,
+                        "ReferenceName": c.reference_name or "",
+                        "DisplayName": _best_name(c.customer_name, c.reference_name),
                         "MobileNumber": c.mobile_number or "-",
                         "OpeningDue": float(max(bals["OpeningBalance"], Decimal("0"))),
                         "MilkDue": float(max(bals["Milk"], Decimal("0"))),
@@ -1106,7 +1111,7 @@ def get_partner_dashboard(today_str: Optional[str] = None):
             due_customers.sort(key=lambda x: x["TotalDue"], reverse=True)
 
             pay_rows = conn.execute(text("""
-                SELECT p.payment_id, p.customer_id, c.customer_code, c.customer_name,
+                SELECT p.payment_id, p.customer_id, c.customer_code, c.customer_name, c.reference_name,
                        p.payment_date, p.payment_mode, p.total_paid, p.notes
                 FROM customer_payments p
                 INNER JOIN customers c ON p.customer_id = c.customer_id
@@ -1138,6 +1143,8 @@ def get_partner_dashboard(today_str: Optional[str] = None):
                 "CustomerID": r.customer_id,
                 "CustomerCode": r.customer_code,
                 "CustomerName": r.customer_name,
+                "ReferenceName": r.reference_name or "",
+                "DisplayName": _best_name(r.customer_name, r.reference_name),
                 "PaymentDate": str(r.payment_date),
                 "PaymentMode": r.payment_mode,
                 "TotalPaid": float(r.total_paid or 0),
