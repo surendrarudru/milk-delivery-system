@@ -1149,3 +1149,143 @@ def get_partner_dashboard(today_str: Optional[str] = None):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/partner/dashboard")
+def get_partner_dashboard(today_str: Optional[str] = None):
+    target_date = date.fromisoformat(today_str) if today_str else datetime.now(IST).date()
+    date_prefix = target_date.strftime("%d-%m-%Y")
+    m_start = date(target_date.year, target_date.month, 1)
+    m_end = date(target_date.year + 1, 1, 1) if target_date.month == 12 else date(target_date.year, target_date.month + 1, 1)
+    try:
+        with engine.connect() as conn:
+            custs = conn.execute(text("""
+                SELECT customer_id, customer_code, customer_name, mobile_number, is_active
+                FROM customers ORDER BY customer_id
+            """)).fetchall()
+            cust_name_map = {c.customer_id: f"{c.customer_name} ({c.customer_code})" for c in custs}
+
+            # 1. Morning & Evening delivered milk litres on selected date
+            deliv_rows = conn.execute(text("""
+                SELECT session_type,
+                       COALESCE(SUM(milk_quantity), 0) AS litres,
+                       COUNT(*) FILTER (WHERE delivery_status = 'Delivered') AS delivered_cnt
+                FROM delivery_details
+                WHERE delivery_date = :td
+                GROUP BY session_type
+            """), {"td": target_date}).fetchall()
+
+            morning_litres = 0.0
+            evening_litres = 0.0
+            morning_count = 0
+            evening_count = 0
+            for dr in deliv_rows:
+                if dr.session_type == "Morning":
+                    morning_litres = float(dr.litres or 0)
+                    morning_count = int(dr.delivered_cnt or 0)
+                elif dr.session_type == "Evening":
+                    evening_litres = float(dr.litres or 0)
+                    evening_count = int(dr.delivered_cnt or 0)
+
+            # 2. Cumulative customer dues
+            led = conn.execute(text("""
+                SELECT customer_id, category, entry_type, COALESCE(SUM(amount), 0) AS tot
+                FROM ledger_entries GROUP BY customer_id, category, entry_type
+            """)).fetchall()
+
+            bal_map = {}
+            for r in led:
+                b = bal_map.setdefault(r.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
+                val = Decimal(str(r.tot or 0))
+                b[r.category] = b.get(r.category, Decimal("0")) + (val if r.entry_type == "DEBIT" else -val)
+
+            due_customers = []
+            total_due = Decimal("0")
+            for c in custs:
+                bals = bal_map.get(c.customer_id, {"OpeningBalance": Decimal("0"), "Milk": Decimal("0"), "VeenaPusa": Decimal("0")})
+                due = sum(max(v, Decimal("0")) for v in bals.values())
+                if due > 0:
+                    total_due += due
+                    due_customers.append({
+                        "CustomerID": c.customer_id,
+                        "CustomerCode": c.customer_code,
+                        "CustomerName": c.customer_name,
+                        "MobileNumber": c.mobile_number or "-",
+                        "OpeningDue": float(max(bals["OpeningBalance"], Decimal("0"))),
+                        "MilkDue": float(max(bals["Milk"], Decimal("0"))),
+                        "VeenaPusaDue": float(max(bals["VeenaPusa"], Decimal("0"))),
+                        "TotalDue": float(due)
+                    })
+            due_customers.sort(key=lambda x: x["TotalDue"], reverse=True)
+
+            # 3. Payments received on selected date
+            pay_rows = conn.execute(text("""
+                SELECT p.payment_id, p.customer_id, c.customer_code, c.customer_name,
+                       p.payment_date, p.payment_mode, p.total_paid, p.notes
+                FROM customer_payments p
+                INNER JOIN customers c ON p.customer_id = c.customer_id
+                WHERE p.payment_date = :td
+                ORDER BY p.payment_id DESC
+            """), {"td": target_date}).fetchall()
+
+            # 4. Updates on selected date + recent payment/billing audit logs
+            date_audit_rows = conn.execute(text("""
+                SELECT log_id AS "LogID", actor_role AS "ActorRole", action_type AS "ActionType",
+                       module_name AS "ModuleName", summary AS "Summary",
+                       details AS "Details", created_at AS "CreatedAt"
+                FROM audit_logs
+                WHERE created_at LIKE :dp
+                ORDER BY log_id DESC LIMIT 100
+            """), {"dp": f"{date_prefix}%"}).fetchall()
+
+            audit_rows = conn.execute(text("""
+                SELECT log_id AS "LogID", actor_role AS "ActorRole", action_type AS "ActionType",
+                       module_name AS "ModuleName", summary AS "Summary",
+                       details AS "Details", created_at AS "CreatedAt"
+                FROM audit_logs
+                WHERE module_name IN ('Payments', 'Monthly Bills', 'Daily Delivery', 'Delivery Correction')
+                ORDER BY log_id DESC LIMIT 120
+            """)).fetchall()
+
+        today_payments = [
+            {
+                "PaymentID": r.payment_id,
+                "CustomerID": r.customer_id,
+                "CustomerCode": r.customer_code,
+                "CustomerName": r.customer_name,
+                "PaymentDate": str(r.payment_date),
+                "PaymentMode": r.payment_mode,
+                "TotalPaid": float(r.total_paid or 0),
+                "Notes": r.notes or ""
+            }
+            for r in pay_rows
+        ]
+
+        def resolve_logs(rows):
+            out = []
+            for a in rows:
+                item = dict(a._mapping)
+                sm = item.get("Summary", "")
+                for cid, label in cust_name_map.items():
+                    sm = sm.replace(f"Customer ID #{cid}", label)
+                item["ResolvedSummary"] = sm
+                out.append(item)
+            return out
+
+        return {
+            "Date": str(target_date),
+            "DateFormatted": date_prefix,
+            "MorningMilkLiters": morning_litres,
+            "MorningDeliveredCount": morning_count,
+            "EveningMilkLiters": evening_litres,
+            "EveningDeliveredCount": evening_count,
+            "DueCustomerCount": len(due_customers),
+            "TotalDueAmount": float(total_due),
+            "DueCustomers": due_customers,
+            "TodayPaymentCount": len(today_payments),
+            "TodayCollectedAmount": sum(p["TotalPaid"] for p in today_payments),
+            "TodayPayments": today_payments,
+            "DateAuditLogs": resolve_logs(date_audit_rows),
+            "PaymentAuditLogs": resolve_logs(audit_rows)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
