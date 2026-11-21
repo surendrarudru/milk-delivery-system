@@ -91,7 +91,7 @@ export default function MonthlyBilling() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.detail || 'Generate failed')
       await loadSummary()
-      showNotice(custId ? 'Bill generated successfully!' : `${teMonthLabel} కోసం ${data.created ?? 0} బిల్లులు Generate అయ్యాయి!`)
+      showNotice(custId ? 'Bill updated up-to-date!' : `${teMonthLabel} కోసం ${data.created ?? 0} కొత్తవి, ${data.updated ?? 0} బిల్లులు అప్‌డేట్ అయ్యాయి!`)
     } catch (e) {
       showNotice(e.message, true)
     } finally {
@@ -316,7 +316,7 @@ export default function MonthlyBilling() {
           </select>
 
           <button type="button" onClick={() => generateBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
-            ⚡ Generate All Bills
+            🔄 Update / Generate All Bills
           </button>
 
           <button type="button" onClick={() => finalizeBill(null)} disabled={working || loading} style={{ padding: '10px 16px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>

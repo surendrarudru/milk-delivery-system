@@ -552,22 +552,83 @@ def preview_monthly_bill(customer_id: int, year: int, month: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _sync_bill_to_ledger(conn, bill_id: int, customer_id: int, year: int, month: int, milk_total: Decimal, vp_total: Decimal):
+    ed = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    b_date = ed - timedelta(days=1)
+    for cat, amt, label in [
+        ("Milk", milk_total, f"Milk bill for {month}/{year}"),
+        ("VeenaPusa", vp_total, f"Veena Pusa bill for {month}/{year}")
+    ]:
+        existing_led = conn.execute(text("""
+            SELECT ledger_id FROM ledger_entries
+            WHERE customer_id = :cid AND reference_id = :bid AND category = :cat AND entry_type = 'DEBIT'
+        """), {"cid": customer_id, "bid": bill_id, "cat": cat}).fetchone()
+        if amt > 0:
+            if existing_led:
+                conn.execute(text("UPDATE ledger_entries SET amount = :amt, entry_date = :bd WHERE ledger_id = :lid"),
+                             {"amt": amt, "bd": b_date, "lid": existing_led.ledger_id})
+            else:
+                conn.execute(text("""
+                    INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description)
+                    VALUES (:cid, :bd, :cat, 'DEBIT', :amt, :bid, :desc)
+                """), {"cid": customer_id, "bd": b_date, "cat": cat, "amt": amt, "bid": bill_id, "desc": label})
+        elif existing_led:
+            conn.execute(text("DELETE FROM ledger_entries WHERE ledger_id = :lid"), {"lid": existing_led.ledger_id})
+
+def _upsert_customer_bill(conn, customer_id: int, year: int, month: int):
+    sd = date(year, month, 1)
+    ed = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    dt = conn.execute(text("""
+        SELECT COALESCE(SUM(milk_quantity * milk_rate), 0) AS ma,
+               COALESCE(SUM(venna_pusa_quantity * venna_pusa_rate), 0) AS va
+        FROM delivery_details
+        WHERE customer_id = :cid AND delivery_date >= :sd AND delivery_date < :ed
+    """), {"cid": customer_id, "sd": sd, "ed": ed}).fetchone()
+    ma, va = Decimal(str(dt.ma)), Decimal(str(dt.va))
+
+    ex = conn.execute(text("""
+        SELECT bill_id, bill_status, previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance
+        FROM monthly_bills WHERE customer_id = :cid AND bill_year = :y AND bill_month = :m
+    """), {"cid": customer_id, "y": year, "m": month}).fetchone()
+
+    if ex:
+        if ex.bill_status == "Finalized":
+            _sync_bill_to_ledger(conn, ex.bill_id, customer_id, year, month, ma, va)
+            po = Decimal(str(ex.previous_opening_balance or 0))
+            pm = Decimal(str(ex.previous_milk_balance or 0))
+            pv = Decimal(str(ex.previous_venna_pusa_balance or 0))
+        else:
+            bals = get_customer_ledger_balances(conn, customer_id)
+            po, pm, pv = bals["OpeningBalance"], bals["Milk"], bals["VeenaPusa"]
+        tot_due = max(Decimal("0"), po) + max(Decimal("0"), ma + pm) + max(Decimal("0"), va + pv)
+        conn.execute(text("""
+            UPDATE monthly_bills
+            SET milk_total = :ma, venna_pusa_total = :va,
+                previous_opening_balance = :po, previous_milk_balance = :pm, previous_venna_pusa_balance = :pv,
+                total_amount_due = :td
+            WHERE bill_id = :bid
+        """), {"ma": ma, "va": va, "po": po, "pm": pm, "pv": pv, "td": tot_due, "bid": ex.bill_id})
+        return ex.bill_id, float(tot_due), "updated"
+    else:
+        bals = get_customer_ledger_balances(conn, customer_id)
+        tot_due = max(Decimal("0"), bals["OpeningBalance"]) + max(Decimal("0"), ma + bals["Milk"]) + max(Decimal("0"), va + bals["VeenaPusa"])
+        bid = conn.execute(text("""
+            INSERT INTO monthly_bills (
+                customer_id, bill_year, bill_month, milk_total, venna_pusa_total,
+                previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance,
+                total_amount_due, bill_status
+            ) VALUES (:cid, :y, :m, :ma, :va, :po, :pm, :pv, :td, 'Generated') RETURNING bill_id
+        """), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": bals["OpeningBalance"], "pm": bals["Milk"], "pv": bals["VeenaPusa"], "td": tot_due}).scalar_one()
+        return bid, float(tot_due), "created"
+
 @app.post("/billing/generate/{customer_id}/{year}/{month}")
 def generate_monthly_bill(customer_id: int, year: int, month: int):
     try:
         with engine.begin() as conn:
             if not conn.execute(text("SELECT 1 FROM customers WHERE customer_id = :cid"), {"cid": customer_id}).fetchone():
                 raise HTTPException(404, "Customer not found")
-            if conn.execute(text("SELECT bill_id FROM monthly_bills WHERE customer_id = :cid AND bill_year = :y AND bill_month = :m"), {"cid": customer_id, "y": year, "m": month}).fetchone():
-                raise HTTPException(400, "Bill already exists for this month")
-            sd = date(year, month, 1)
-            ed = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-            dt = conn.execute(text("SELECT COALESCE(SUM(milk_quantity * milk_rate), 0) AS ma, COALESCE(SUM(venna_pusa_quantity * venna_pusa_rate), 0) AS va FROM delivery_details WHERE customer_id = :cid AND delivery_date >= :sd AND delivery_date < :ed"), {"cid": customer_id, "sd": sd, "ed": ed}).fetchone()
-            ma, va = Decimal(str(dt.ma)), Decimal(str(dt.va))
-            bals = get_customer_ledger_balances(conn, customer_id)
-            tot_due = max(Decimal("0"), bals["OpeningBalance"]) + max(Decimal("0"), ma + bals["Milk"]) + max(Decimal("0"), va + bals["VeenaPusa"])
-            bid = conn.execute(text("INSERT INTO monthly_bills (customer_id, bill_year, bill_month, milk_total, venna_pusa_total, previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance, total_amount_due, bill_status) VALUES (:cid, :y, :m, :ma, :va, :po, :pm, :pv, :td, 'Generated') RETURNING bill_id"), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": bals["OpeningBalance"], "pm": bals["Milk"], "pv": bals["VeenaPusa"], "td": tot_due}).scalar_one()
-            return {"message": "Monthly bill generated successfully", "BillID": bid, "TotalAmountDue": float(tot_due)}
+            bid, tot_due, mode = _upsert_customer_bill(conn, customer_id, year, month)
+            return {"message": f"Monthly bill {mode} up-to-date!", "BillID": bid, "TotalAmountDue": tot_due}
     except HTTPException:
         raise
     except Exception as e:
@@ -579,21 +640,15 @@ def finalize_monthly_bill(bill_id: int):
     try:
         with engine.begin() as conn:
             bill = conn.execute(text("SELECT bill_id, customer_id, bill_year, bill_month, bill_status, milk_total, venna_pusa_total FROM monthly_bills WHERE bill_id = :bid"), {"bid": bill_id}).fetchone()
-            if not bill or bill.bill_status != "Generated":
-                raise HTTPException(400, "Bill not found or already finalized")
-            ed = date(bill.bill_year + 1, 1, 1) if bill.bill_month == 12 else date(bill.bill_year, bill.bill_month + 1, 1)
-            b_date = ed - timedelta(days=1)
-            if Decimal(str(bill.milk_total or 0)) > 0:
-                conn.execute(text("INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description) VALUES (:cid, :bd, 'Milk', 'DEBIT', :amt, :bid, :desc)"), {"cid": bill.customer_id, "bd": b_date, "amt": bill.milk_total, "bid": bill.bill_id, "desc": f"Milk bill for {bill.bill_month}/{bill.bill_year}"})
-            if Decimal(str(bill.venna_pusa_total or 0)) > 0:
-                conn.execute(text("INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description) VALUES (:cid, :bd, 'VeenaPusa', 'DEBIT', :amt, :bid, :desc)"), {"cid": bill.customer_id, "bd": b_date, "amt": bill.venna_pusa_total, "bid": bill.bill_id, "desc": f"Veena Pusa bill for {bill.bill_month}/{bill.bill_year}"})
+            if not bill:
+                raise HTTPException(404, "Bill not found")
+            _sync_bill_to_ledger(conn, bill.bill_id, bill.customer_id, bill.bill_year, bill.bill_month, Decimal(str(bill.milk_total or 0)), Decimal(str(bill.venna_pusa_total or 0)))
             conn.execute(text("UPDATE monthly_bills SET bill_status = 'Finalized' WHERE bill_id = :bid"), {"bid": bill.bill_id})
-        return {"message": "Monthly bill finalized successfully", "BillID": bill.bill_id}
+        return {"message": "Monthly bill finalized & synced to Payments!", "BillID": bill.bill_id}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/customers/{customer_id}/bills")
 def get_customer_bill_history(customer_id: int):
@@ -708,61 +763,35 @@ def get_monthly_billing_summary(year: int, month: int):
 
 @app.post("/billing/generate-all/{year}/{month}")
 def generate_all_monthly_bills(year: int, month: int):
-    sd = date(year, month, 1)
-    ed = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
     try:
         with engine.begin() as conn:
             active_ids = [r.customer_id for r in conn.execute(text("SELECT customer_id FROM customers WHERE is_active = TRUE")).fetchall()]
-            existing_ids = {r.customer_id for r in conn.execute(text("SELECT customer_id FROM monthly_bills WHERE bill_year = :y AND bill_month = :m"), {"y": year, "m": month}).fetchall()}
-            deliv_rows = conn.execute(text("""
-                SELECT customer_id,
-                       COALESCE(SUM(milk_quantity * milk_rate), 0) AS ma,
-                       COALESCE(SUM(venna_pusa_quantity * venna_pusa_rate), 0) AS va
-                FROM delivery_details WHERE delivery_date >= :sd AND delivery_date < :ed
-                GROUP BY customer_id
-            """), {"sd": sd, "ed": ed}).fetchall()
-            deliv_map = {r.customer_id: (Decimal(str(r.ma)), Decimal(str(r.va))) for r in deliv_rows}
-
-            created = 0
+            created, updated = 0, 0
             for cid in active_ids:
-                if cid in existing_ids:
-                    continue
-                ma, va = deliv_map.get(cid, (Decimal("0"), Decimal("0")))
-                bals = get_customer_ledger_balances(conn, cid)
-                tot_due = max(Decimal("0"), bals["OpeningBalance"]) + max(Decimal("0"), ma + bals["Milk"]) + max(Decimal("0"), va + bals["VeenaPusa"])
-                conn.execute(text("""
-                    INSERT INTO monthly_bills (
-                        customer_id, bill_year, bill_month, milk_total, venna_pusa_total,
-                        previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance,
-                        total_amount_due, bill_status
-                    ) VALUES (:cid, :y, :m, :ma, :va, :po, :pm, :pv, :td, 'Generated')
-                """), {"cid": cid, "y": year, "m": month, "ma": ma, "va": va, "po": bals["OpeningBalance"], "pm": bals["Milk"], "pv": bals["VeenaPusa"], "td": tot_due})
-                created += 1
-        return {"message": f"Generated {created} bills", "created": created}
+                _, _, mode = _upsert_customer_bill(conn, cid, year, month)
+                if mode == "created":
+                    created += 1
+                else:
+                    updated += 1
+        return {"message": f"Up-to-date: {created} new, {updated} refreshed!", "created": created, "updated": updated}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/billing/finalize-all/{year}/{month}")
 def finalize_all_monthly_bills(year: int, month: int):
-    ed = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    b_date = ed - timedelta(days=1)
     try:
         with engine.begin() as conn:
             bills = conn.execute(text("""
                 SELECT bill_id, customer_id, milk_total, venna_pusa_total
-                FROM monthly_bills WHERE bill_year = :y AND bill_month = :m AND bill_status = 'Generated'
+                FROM monthly_bills WHERE bill_year = :y AND bill_month = :m
             """), {"y": year, "m": month}).fetchall()
             for b in bills:
-                if Decimal(str(b.milk_total or 0)) > 0:
-                    conn.execute(text("INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description) VALUES (:cid, :bd, 'Milk', 'DEBIT', :amt, :bid, :desc)"), {"cid": b.customer_id, "bd": b_date, "amt": b.milk_total, "bid": b.bill_id, "desc": f"Milk bill for {month}/{year}"})
-                if Decimal(str(b.venna_pusa_total or 0)) > 0:
-                    conn.execute(text("INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description) VALUES (:cid, :bd, 'VeenaPusa', 'DEBIT', :amt, :bid, :desc)"), {"cid": b.customer_id, "bd": b_date, "amt": b.venna_pusa_total, "bid": b.bill_id, "desc": f"Veena Pusa bill for {month}/{year}"})
+                _sync_bill_to_ledger(conn, b.bill_id, b.customer_id, year, month, Decimal(str(b.milk_total or 0)), Decimal(str(b.venna_pusa_total or 0)))
                 conn.execute(text("UPDATE monthly_bills SET bill_status = 'Finalized' WHERE bill_id = :bid"), {"bid": b.bill_id})
-        return {"message": f"Finalized {len(bills)} bills", "finalized": len(bills)}
+        return {"message": f"Finalized & synced {len(bills)} bills to Payments!", "finalized": len(bills)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/reports/monthly-overview/{year}/{month}")
 def get_reports_monthly_overview(year: int, month: int):
