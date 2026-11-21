@@ -42,7 +42,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('mm_admin_auth') || 'null') } catch { return null }
   })
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [loginForm, setLoginForm] = useState({ username: 'admin', pin: '' })
+  const [loginForm, setLoginForm] = useState({ username: 'staff', pin: '' })
   const [loginError, setLoginError] = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
 
@@ -110,7 +110,7 @@ export default function App() {
       setAdminAuth(data)
       setShowLoginModal(false)
       setTab('dashboard')
-      setLoginForm({ username: 'admin', pin: '' })
+      setLoginForm({ username: 'staff', pin: '' })
     } catch (err) {
       setLoginError(err.message)
     } finally {
