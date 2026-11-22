@@ -156,9 +156,9 @@ export default function AuditLog({ currentUser }) {
 
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
-      <div style={{ background: 'linear-gradient(135deg, #0f4c2e 0%, #0f766e 100%)', color: '#fff', padding: '22px 26px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: '0 4px 14px rgba(15,76,46,0.16)' }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f4c2e 0%, #0f766e 100%)', color: '#fff', padding: '16px 20px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: '0 4px 14px rgba(15,76,46,0.16)' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '21px', letterSpacing: '-0.2px' }}>🛡️ Security & Activity Audit Log</h2>
+          <h2 style={{ margin: 0, fontSize: '20px', letterSpacing: '-0.2px' }}>🛡️ Security & Activity Audit Log</h2>
           <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#ccfbf1' }}>
             Complete system accountability — tracks user role, IST timestamp, module, and detailed field-level changes
           </p>
@@ -182,19 +182,19 @@ export default function AuditLog({ currentUser }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
         <div onClick={() => { setRoleFilter('All'); setModuleFilter('All') }} style={{ background: '#fff', padding: '15px 18px', borderRadius: '12px', border: roleFilter === 'All' && moduleFilter === 'All' ? '2px solid #0f766e' : '1px solid #e2e8f0', cursor: 'pointer' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Total Activities</span>
-          <div style={{ fontSize: '25px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>{logs.length}</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>{logs.length}</div>
         </div>
         <div style={{ background: '#fff', padding: '15px 18px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Today&apos;s Updates</span>
-          <div style={{ fontSize: '25px', fontWeight: 800, color: '#0f766e', marginTop: '4px' }}>{todayCount}</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#0f766e', marginTop: '4px' }}>{todayCount}</div>
         </div>
         <div onClick={() => setRoleFilter('Admin')} style={{ background: '#fff', padding: '15px 18px', borderRadius: '12px', border: roleFilter === 'Admin' ? '2px solid #15803d' : '1px solid #e2e8f0', cursor: 'pointer' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Admin Updates</span>
-          <div style={{ fontSize: '25px', fontWeight: 800, color: '#15803d', marginTop: '4px' }}>{adminCount}</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#15803d', marginTop: '4px' }}>{adminCount}</div>
         </div>
         <div onClick={() => setRoleFilter('User')} style={{ background: '#fff', padding: '15px 18px', borderRadius: '12px', border: roleFilter === 'User' ? '2px solid #0369a1' : '1px solid #e2e8f0', cursor: 'pointer' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>User Updates</span>
-          <div style={{ fontSize: '25px', fontWeight: 800, color: '#0369a1', marginTop: '4px' }}>{userCount}</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#0369a1', marginTop: '4px' }}>{userCount}</div>
         </div>
       </div>
 

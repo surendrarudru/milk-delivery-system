@@ -131,15 +131,15 @@ export default function PartnerPortal() {
 
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
-      <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f766e 100%)', color: '#fff', padding: '22px', borderRadius: '22px', boxShadow: '0 8px 24px rgba(6,78,59,0.22)' }}>
+      <div style={{ background: 'linear-gradient(135deg, #064e3b 0%, #0f766e 100%)', color: '#fff', padding: '16px', borderRadius: '22px', boxShadow: '0 8px 24px rgba(6,78,59,0.22)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div onClick={playOneTapTodayBriefing} style={{ display: 'flex', alignItems: 'center', gap: '18px', flex: 1, minWidth: '260px', cursor: 'pointer' }}>
-            <img src="/bujjayi.png" alt="BujjiAyyi" style={{ width: "112px", height: "112px", objectFit: "contain", borderRadius: "50%", background: "#fff", padding: "6px", border: isSpeaking ? "5px solid #facc15" : "4px solid rgba(255,255,255,0.85)", boxShadow: "0 8px 22px rgba(0,0,0,0.28)" }} />
+            <img src="/bujjayi.png" alt="BujjiAyyi" style={{ width: "76px", height: "76px", objectFit: "contain", borderRadius: "50%", background: "#fff", padding: "6px", border: isSpeaking ? "5px solid #facc15" : "4px solid rgba(255,255,255,0.85)", boxShadow: "0 8px 22px rgba(0,0,0,0.28)" }} />
             <div>
               <span style={{ background: 'rgba(255,255,255,0.22)', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800 }}>
                 📅 {data?.DateFormatted || ''}
               </span>
-              <h2 style={{ margin: '8px 0 4px', fontSize: '23px', fontWeight: 900, color: '#fff' }}>BujjiAyyi</h2>
+              <h2 style={{ margin: '8px 0 4px', fontSize: '20px', fontWeight: 900, color: '#fff' }}>BujjiAyyi</h2>
               
             </div>
           </div>
@@ -153,44 +153,44 @@ export default function PartnerPortal() {
       {error && <div style={{ padding: '14px 18px', background: '#fee2e2', color: '#b91c1c', borderRadius: '12px', fontWeight: 800 }}>⚠️ {error}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-        <div style={{ background: '#fff', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
+        <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
           <span style={{ fontSize: '14px', fontWeight: 800, color: '#475569' }}>🌅 ఈరోజు ఉదయం పాలు</span>
-          <div style={{ fontSize: '28px', fontWeight: 900, color: '#0f4c2e', marginTop: '6px' }}>{Number(data?.MorningMilkLiters || 0).toFixed(2)} L</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#0f4c2e', marginTop: '6px' }}>{Number(data?.MorningMilkLiters || 0).toFixed(2)} L</div>
           <span style={{ fontSize: '13px', color: '#0f766e', fontWeight: 700 }}>{data?.MorningDeliveredCount || 0} మంది కస్టమర్లకు</span>
         </div>
-        <div style={{ background: '#fff', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
+        <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
           <span style={{ fontSize: '14px', fontWeight: 800, color: '#475569' }}>🌆 ఈరోజు సాయంత్రం పాలు</span>
-          <div style={{ fontSize: '28px', fontWeight: 900, color: '#1d4ed8', marginTop: '6px' }}>{Number(data?.EveningMilkLiters || 0).toFixed(2)} L</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#1d4ed8', marginTop: '6px' }}>{Number(data?.EveningMilkLiters || 0).toFixed(2)} L</div>
           <span style={{ fontSize: '13px', color: '#1e40af', fontWeight: 700 }}>{data?.EveningDeliveredCount || 0} మంది కస్టమర్లకు</span>
         </div>
-        <div style={{ background: '#fff', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
+        <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
           <span style={{ fontSize: '14px', fontWeight: 800, color: '#475569' }}>💳 ఈరోజు వచ్చిన పేమెంట్లు</span>
-          <div style={{ fontSize: '28px', fontWeight: 900, color: '#15803d', marginTop: '6px' }}>₹{Number(data?.TodayCollectedAmount || 0).toLocaleString('en-IN')}</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#15803d', marginTop: '6px' }}>₹{Number(data?.TodayCollectedAmount || 0).toLocaleString('en-IN')}</div>
           <span style={{ fontSize: '13px', color: '#166534', fontWeight: 700 }}>{todayPays.length} మంది ఇచ్చారు</span>
         </div>
-        <div style={{ background: '#fff', padding: '18px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
+        <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', border: '1px solid #cbd5e1' }}>
           <span style={{ fontSize: '14px', fontWeight: 800, color: '#475569' }}>📌 మొత్తం బకాయి (Only Due)</span>
-          <div style={{ fontSize: '28px', fontWeight: 900, color: '#b45309', marginTop: '6px' }}>₹{Number(data?.TotalDueAmount || 0).toLocaleString('en-IN')}</div>
+          <div style={{ fontSize: '18px', fontWeight: 900, color: '#b45309', marginTop: '6px' }}>₹{Number(data?.TotalDueAmount || 0).toLocaleString('en-IN')}</div>
           <span style={{ fontSize: '13px', color: '#92400e', fontWeight: 700 }}>{data?.DueCustomerCount || 0} మంది ఇవ్వవలసి ఉంది</span>
         </div>
       </div>
-      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '18px' }}>
-        <h3 style={{ margin: '0 0 14px', fontSize: '19px', color: '#0f172a' }}>💳 ఈరోజు పేమెంట్లు & అప్‌డేట్ చేసినవారు ({todayPays.length})</h3>
-        {todayPays.length === 0 ? <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '16px', fontWeight: 600 }}>ఈరోజు ఇంకా పేమెంట్లు నమోదు కాలేదు.</div> : (
+      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '16px' }}>
+        <h3 style={{ margin: '0 0 14px', fontSize: '14px', color: '#0f172a' }}>💳 ఈరోజు పేమెంట్లు & అప్‌డేట్ చేసినవారు ({todayPays.length})</h3>
+        {todayPays.length === 0 ? <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '14px', fontWeight: 600 }}>ఈరోజు ఇంకా పేమెంట్లు నమోదు కాలేదు.</div> : (
           <div style={{ display: 'grid', gap: '10px' }}>
             {todayPays.map((p, idx) => {
               const isAdmin = p.UpdatedBy === 'Admin'
               return (
                 <div key={p.PaymentID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '14px 16px', borderRadius: '14px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                   <div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{idx + 1}. {getBestName(p)} <span style={{ fontSize: '13.5px', color: '#475569' }}>({p.CustomerCode})</span></div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{idx + 1}. {getBestName(p)} <span style={{ fontSize: '13.5px', color: '#475569' }}>({p.CustomerCode})</span></div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '5px' }}>
                       <span style={{ fontSize: '13.5px', color: '#166534', fontWeight: 700 }}>విధానం: {p.PaymentMode === 'Cash' ? 'నగదు (Cash)' : p.PaymentMode}</span>
                       <span style={{ padding: '3px 10px', borderRadius: '999px', fontSize: '12.5px', fontWeight: 800, background: isAdmin ? '#dcfce7' : '#e0f2fe', color: isAdmin ? '#15803d' : '#0369a1' }}>{isAdmin ? '🛡️ అప్‌డేట్: Admin' : '👤 అప్‌డేట్: సుధీర్ (Sudheer)'}</span>
                       {p.UpdatedAt && <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: 600 }}>🕒 {p.UpdatedAt}</span>}
                     </div>
                   </div>
-                  <div style={{ fontSize: '23px', fontWeight: 900, color: '#15803d' }}>₹{Number(p.TotalPaid || 0).toLocaleString('en-IN')}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#15803d' }}>₹{Number(p.TotalPaid || 0).toLocaleString('en-IN')}</div>
                 </div>
               )
             })}
@@ -198,20 +198,20 @@ export default function PartnerPortal() {
         )}
       </div>
 
-      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '18px' }}>
+      <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #cbd5e1', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
-          <h3 style={{ margin: 0, fontSize: '19px', color: '#0f172a' }}>📌 బకాయి రిపోర్ట్ — Only Due Customers ({dueList.length})</h3>
+          <h3 style={{ margin: 0, fontSize: '14px', color: '#0f172a' }}>📌 బకాయి రిపోర్ట్ — Only Due Customers ({dueList.length})</h3>
           <input type="text" placeholder="🔍 పేరు వెతకండి..." value={search} onChange={e => setSearch(e.target.value)} style={{ padding: '9px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '15px', minWidth: '190px' }} />
         </div>
-        {dueList.length === 0 ? <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '16px', fontWeight: 600 }}>బకాయి ఉన్న కస్టమర్లు లేరు.</div> : (
+        {dueList.length === 0 ? <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '14px', fontWeight: 600 }}>బకాయి ఉన్న కస్టమర్లు లేరు.</div> : (
           <div style={{ display: 'grid', gap: '10px' }}>
             {dueList.map((c, idx) => (
               <div key={c.CustomerID} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', padding: '14px 16px', borderRadius: '14px', background: '#fffbeb', border: '1px solid #fde68a' }}>
                 <div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{idx + 1}. {getBestName(c)} <span style={{ fontSize: '13.5px', color: '#64748b' }}>({c.CustomerCode})</span></div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{idx + 1}. {getBestName(c)} <span style={{ fontSize: '13.5px', color: '#64748b' }}>({c.CustomerCode})</span></div>
                   <div style={{ fontSize: '14px', color: '#475569', fontWeight: 600, marginTop: '4px' }}>పాత బకాయి: ₹{Math.round(c.OpeningDue).toLocaleString('en-IN')} • పాలు: ₹{Math.round(c.MilkDue).toLocaleString('en-IN')} • వెన్నపూస: ₹{Math.round(c.VeenaPusaDue).toLocaleString('en-IN')}</div>
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: '#b91c1c' }}>₹{Number(c.TotalDue || 0).toLocaleString('en-IN')}</div>
+                <div style={{ fontSize: '18px', fontWeight: 900, color: '#b91c1c' }}>₹{Number(c.TotalDue || 0).toLocaleString('en-IN')}</div>
               </div>
             ))}
           </div>
