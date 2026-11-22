@@ -408,6 +408,45 @@ def get_customer_delivery_history(customer_id: int, delivery_date: date):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ManualDeliveryEntry(BaseModel):
+    CustomerID: int
+    DeliveryDate: date
+    Session: str
+    DeliveryStatus: str = "Delivered"
+    MilkQuantity: Decimal = Decimal("0")
+    VeenaPusaDelivered: bool = False
+    VeenaPusaQuantity: Decimal = Decimal("0")
+    Notes: Optional[str] = None
+
+
+@app.post("/delivery/manual-entry")
+def add_manual_delivery_entry(req: ManualDeliveryEntry):
+    session = validate_session(req.Session)
+    try:
+        with engine.begin() as conn:
+            cust = conn.execute(text("SELECT milk_rate, venna_pusa_rate FROM customers WHERE customer_id = :cid"), {"cid": req.CustomerID}).fetchone()
+            if not cust:
+                raise HTTPException(404, "Customer not found")
+            sess_row = conn.execute(text("SELECT session_id FROM delivery_sessions WHERE delivery_date = :d AND session_type = :s"), {"d": req.DeliveryDate, "s": session}).fetchone()
+            if sess_row:
+                sid = sess_row.session_id
+            else:
+                sid = conn.execute(text("INSERT INTO delivery_sessions (delivery_date, session_type, session_status) VALUES (:d, :s, 'Completed') RETURNING session_id"), {"d": req.DeliveryDate, "s": session}).scalar_one()
+
+            m_qty = Decimal("0") if req.DeliveryStatus == "Undelivered" else Decimal(str(req.MilkQuantity))
+            v_qty = Decimal("0") if (req.DeliveryStatus == "Undelivered" or not req.VeenaPusaDelivered) else Decimal(str(req.VeenaPusaQuantity))
+            old = conn.execute(text("SELECT detail_id FROM delivery_details WHERE session_id = :sid AND customer_id = :cid"), {"sid": sid, "cid": req.CustomerID}).fetchone()
+            if old:
+                conn.execute(text("UPDATE delivery_details SET delivery_status=:st, milk_quantity=:mq, venna_pusa_quantity=:vq, remarks=:rm WHERE detail_id=:did"), {"st": req.DeliveryStatus, "mq": m_qty, "vq": v_qty, "rm": req.Notes, "did": old.detail_id})
+            else:
+                conn.execute(text("INSERT INTO delivery_details (session_id, customer_id, delivery_date, session_type, delivery_status, milk_quantity, milk_rate, venna_pusa_quantity, venna_pusa_rate, remarks) VALUES (:sid, :cid, :dd, :s, :st, :mq, :mr, :vq, :vr, :rm)"), {"sid": sid, "cid": req.CustomerID, "dd": req.DeliveryDate, "s": session, "st": req.DeliveryStatus, "mq": m_qty, "mr": Decimal(str(cust.milk_rate or 0)), "vq": v_qty, "vr": Decimal(str(cust.venna_pusa_rate or 0)), "rm": req.Notes})
+        return {"message": "Manual delivery entry saved!"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.put("/delivery/correction/{detail_id}")
 def correct_delivery_record(detail_id: int, request: DeliveryCorrectionRequest):
     try:

@@ -120,12 +120,12 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
       if (cRes.ok) setCalendarData(await cRes.json())
     } catch (err) { setCorrectionMessage(err.message) } finally { setSavingCorrection(false) }
   }
-  function renderSession(title, record) {
+  function renderSession(title, record, sessionName) {
     return (
       <div className="dh-session-card">
         <h4>{title}</h4>
         {!record ? (
-          <p className="dh-no-record">No delivery record found.</p>
+          <><p className="dh-no-record">No delivery record found.</p><button type="button" className="dh-edit-button" style={{ marginTop: "8px", background: "#0f766e", color: "#fff" }} onClick={() => startEdit(null, sessionName)}>+ Add Delivery Entry</button></>
         ) : (
           <>
             <div className="dh-detail-row"><span>Delivery Status</span><strong>{record.DeliveryStatus || 'Not Available'}</strong></div>
@@ -242,8 +242,8 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
         <h3>Delivery Details — {formatDate(selectedDate)}</h3>
         {historyLoading ? <p>Loading delivery details...</p> : historyData?.error ? <p className="dh-error">{historyData.error}</p> : (
           <div className="dh-session-grid">
-            {renderSession('Morning Delivery', morningRecord)}
-            {renderSession('Evening Delivery', eveningRecord)}
+            {renderSession('Morning Delivery', morningRecord, 'Morning')}
+            {renderSession('Evening Delivery', eveningRecord, 'Evening')}
           </div>
         )}
       </div>
