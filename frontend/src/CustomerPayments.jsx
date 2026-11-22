@@ -39,15 +39,7 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
     try {
       const list = (await (await fetch(`${API_URL}/customers`)).json()).filter(c => c.IsActive)
       setCustomers(list)
-      if (!customer) {
-        const rows = await Promise.all(list.map(async c => {
-          try {
-            const r = await fetch(`${API_URL}/customers/${c.CustomerID}/ledger`)
-            return { ...c, ...(r.ok ? parseLedgerBalances(await r.json()) : { opening: Number(c.OpeningBalance || 0), milk: 0, butter: 0, total: Number(c.OpeningBalance || 0) }) }
-          } catch { return { ...c, opening: Number(c.OpeningBalance || 0), milk: 0, butter: 0, total: Number(c.OpeningBalance || 0) } }
-        }))
-        setDueRows(rows.filter(x => x.total > 0).sort((a, b) => b.total - a.total))
-      }
+
     } catch {}
   }
 
