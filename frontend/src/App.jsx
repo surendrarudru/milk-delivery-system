@@ -1,3 +1,4 @@
+import ErrorBoundary from './components/ErrorBoundary'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import CustomerMaster from './CustomerMaster'
@@ -249,7 +250,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="app-content">
+        <main className="app-content"><ErrorBoundary key={location.pathname} sectionName={location.pathname}>
           {!online && <div className="offline-banner">Backend offline on port 8000.</div>}
           {tab === 'dashboard' && (
             <div className="dashboard-container">
@@ -291,7 +292,7 @@ export default function App() {
           {tab === 'marketingAds' && role === 'Admin' && <MarketingAds />}
           {tab === 'auditLog' && role === 'Admin' && <AuditLog currentUser={adminAuth} />}
           {tab === 'coOwnerView' && role === 'Admin' && <PartnerPortal />}
-        </main>
+        </ErrorBoundary></main>
       </div>
 
       <nav className="mobile-bottom-nav">

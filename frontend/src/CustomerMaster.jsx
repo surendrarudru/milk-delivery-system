@@ -1,3 +1,4 @@
+import { CardGridSkeleton } from './components/LoadingSkeleton'
 import { customerSchema, validateWithSchema } from './validation/schemas'
 import { useEffect, useState } from 'react'
 import DeliveryHistory from './DeliveryHistory'
@@ -1203,7 +1204,7 @@ function CustomerMaster() {
       )}
 
       {loading ? (
-        <p>Loading customers...</p>
+        <CardGridSkeleton count={6} />
       ) : filteredCustomers.length === 0 ? (
         <p className="no-customers">No customers found.</p>
       ) : (
