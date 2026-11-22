@@ -1,3 +1,4 @@
+import { paymentSchema, validateWithSchema } from './validation/schemas'
 import { useEffect, useState } from 'react'
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')
@@ -32,6 +33,7 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
   const [form, setForm] = useState({ date: new Date().toLocaleDateString('en-CA'), mode: 'Cash', opening: 0, milk: 0, butter: 0, notes: '' })
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
 
   async function loadAll() {
     try {
@@ -66,6 +68,18 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
 
   async function savePayment(e) {
     e.preventDefault()
+    const check = validateWithSchema(paymentSchema, {
+      CustomerID: customer?.CustomerID || 0,
+      PaymentDate: form.PaymentDate,
+      OpeningBalanceAmount: form.OpeningBalanceAmount || 0,
+      MilkAmount: form.MilkAmount || 0,
+      VeenaPusaAmount: form.VeenaPusaAmount || 0,
+    })
+    if (!check.success) {
+      setPaymentError(check.firstError)
+      return
+    }
+    setPaymentError('')
     if (!custId) return setMsg('Please select a customer first.')
     if (allocated <= 0) return setMsg('Enter an amount greater than 0.')
     setSaving(true)
@@ -109,7 +123,12 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="text" placeholder="Optional notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} style={{ ...inp, flex: 1, minWidth: '180px' }} />
             <strong>Total: ₹{allocated.toFixed(2)}</strong>
-            <button type="submit" disabled={saving} style={{ padding: '10px 20px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Payment'}</button>
+            {paymentError && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", padding: "10px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, marginBottom: "10px" }}>
+              ?? {paymentError}
+            </div>
+          )}
+          <button type="submit" disabled={saving} style={{ padding: '10px 20px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Payment'}</button>
           </div>
         </form>
       </div>
