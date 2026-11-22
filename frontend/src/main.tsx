@@ -6,7 +6,7 @@ import App from './App.jsx'
 
 const origFetch = window.fetch.bind(window)
 window.fetch = async (input, init = {}) => {
-  const url = typeof input === 'string' ? input : input?.url || ''
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input?.url || ''
   if (url.includes('onrender.com') || url.includes(':8000')) {
     try {
       const auth = JSON.parse(localStorage.getItem('mm_admin_auth') || 'null')
@@ -25,7 +25,7 @@ window.fetch = async (input, init = {}) => {
   return res
 }
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter><App /></BrowserRouter>
   </StrictMode>,
