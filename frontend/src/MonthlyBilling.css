@@ -1,5 +1,6 @@
 .monthly-billing-page {
-  padding: 20px;
+  padding: 0;
+  width: 100%;
 }
 
 .billing-header {
@@ -11,7 +12,7 @@
 }
 
 .billing-header h1 {
-  font-size: 28px;
+  font-size: 20px;
   margin-bottom: 5px;
 }
 
