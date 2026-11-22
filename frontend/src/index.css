@@ -117,3 +117,13 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* WCAG AA Accessibility & Keyboard Focus Rings */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid #0f766e !important;
+  outline-offset: 2px !important;
+}
+.dh-green { background-color: #dcfce7 !important; color: #064e3b !important; border-color: #16a34a !important; }
+.dh-yellow { background-color: #fef3c7 !important; color: #78350f !important; border-color: #d97706 !important; }
+.dh-red { background-color: #fee2e2 !important; color: #7f1d1d !important; border-color: #dc2626 !important; }
+.dh-grey { background-color: #f1f5f9 !important; color: #1e293b !important; border-color: #94a3b8 !important; }

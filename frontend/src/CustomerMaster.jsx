@@ -1,6 +1,6 @@
 import { CardGridSkeleton } from './components/LoadingSkeleton'
 import { customerSchema, validateWithSchema } from './validation/schemas'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import DeliveryHistory from './DeliveryHistory'
 import CustomerPayments from './CustomerPayments'
 import CustomerLedger from './CustomerLedger'
@@ -116,6 +116,18 @@ function CustomerMaster() {
       setLoading(false)
     }
   }
+
+  
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowModal(false)
+        setSelectedCustomer(null)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   useEffect(() => {
     loadCustomers()
@@ -347,7 +359,7 @@ function CustomerMaster() {
   }
 
   // SEARCH AND FILTER
-  const filteredCustomers = customers.filter(customer => {
+  const filteredCustomers = useMemo(() => customers.filter(customer => {
     const searchText = search.toLowerCase().trim()
 
     const matchesSearch =
@@ -372,7 +384,7 @@ function CustomerMaster() {
     }
 
     return matchesSearch && matchesFilter
-  })
+  }), [customers, search, filter, shiftFilter])
 
   // CUSTOMER COUNTS
   const activeCount = customers.filter(
