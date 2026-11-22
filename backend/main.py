@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -232,9 +233,23 @@ def reorder_route(session: str, request: RouteReorderRequest):
     session = validate_session(session)
     try:
         with engine.begin() as conn:
+            # Validate all customer IDs exist, belong to the session, and are active
+            for cid in request.customer_ids:
+                cust = conn.execute(text("SELECT customer_id, is_active, morning_delivery, evening_delivery FROM customers WHERE customer_id = :cid"), {"cid": cid}).fetchone()
+                if not cust:
+                    raise HTTPException(status_code=404, detail=f"Customer {cid} not found")
+                if not cust.is_active:
+                    raise HTTPException(status_code=400, detail=f"Customer {cid} is inactive and cannot be reordered")
+                # Verify the customer has a route for this session type
+                route = conn.execute(text("SELECT route_id FROM customer_routes WHERE customer_id = :cid AND session_type = :s"), {"cid": cid, "s": session}).fetchone()
+                if not route:
+                    raise HTTPException(status_code=400, detail=f"Customer {cid} has no route for {session} session")
+            # Now update the route orders
             for order, cid in enumerate(request.customer_ids, start=1):
                 conn.execute(text("UPDATE customer_routes SET route_order = :o WHERE customer_id = :c AND session_type = :s"), {"o": order, "c": cid, "s": session})
         return {"message": f"{session} route updated successfully", "total_customers": len(request.customer_ids)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 @app.get("/delivery/boys")
@@ -431,7 +446,7 @@ def add_manual_delivery_entry(req: ManualDeliveryEntry):
             if sess_row:
                 sid = sess_row.session_id
             else:
-                sid = conn.execute(text("INSERT INTO delivery_sessions (delivery_date, session_type, session_status) VALUES (:d, :s, 'Completed') RETURNING session_id"), {"d": req.DeliveryDate, "s": session}).scalar_one()
+                sid = conn.execute(text("INSERT INTO delivery_sessions (delivery_date, session_type, session_status) VALUES (:d, :s, 'Open') RETURNING session_id"), {"d": req.DeliveryDate, "s": session}).scalar_one()
 
             m_qty = Decimal("0") if req.DeliveryStatus == "Undelivered" else Decimal(str(req.MilkQuantity))
             v_qty = Decimal("0") if (req.DeliveryStatus == "Undelivered" or not req.VeenaPusaDelivered) else Decimal(str(req.VeenaPusaQuantity))
@@ -637,8 +652,10 @@ def _upsert_customer_bill(conn, customer_id: int, year: int, month: int):
             pm = Decimal(str(ex.previous_milk_balance or 0))
             pv = Decimal(str(ex.previous_venna_pusa_balance or 0))
         else:
-            bals = get_customer_ledger_balances(conn, customer_id)
-            po, pm, pv = bals["OpeningBalance"], bals["Milk"], bals["VeenaPusa"]
+            # Use the bill's own stored previous values (more accurate than full ledger)
+            po = Decimal(str(ex.previous_opening_balance or 0))
+            pm = Decimal(str(ex.previous_milk_balance or 0))
+            pv = Decimal(str(ex.previous_venna_pusa_balance or 0))
         tot_due = max(Decimal("0"), po) + max(Decimal("0"), ma + pm) + max(Decimal("0"), va + pv)
         conn.execute(text("""
             UPDATE monthly_bills
@@ -649,15 +666,15 @@ def _upsert_customer_bill(conn, customer_id: int, year: int, month: int):
         """), {"ma": ma, "va": va, "po": po, "pm": pm, "pv": pv, "td": tot_due, "bid": ex.bill_id})
         return ex.bill_id, float(tot_due), "updated"
     else:
-        bals = get_customer_ledger_balances(conn, customer_id)
-        tot_due = max(Decimal("0"), bals["OpeningBalance"]) + max(Decimal("0"), ma + bals["Milk"]) + max(Decimal("0"), va + bals["VeenaPusa"])
+        # New bill: initialize previous balances to 0, total due is just current month's amounts
+        tot_due = max(Decimal("0"), ma) + max(Decimal("0"), va)
         bid = conn.execute(text("""
             INSERT INTO monthly_bills (
                 customer_id, bill_year, bill_month, milk_total, venna_pusa_total,
                 previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance,
                 total_amount_due, bill_status
             ) VALUES (:cid, :y, :m, :ma, :va, :po, :pm, :pv, :td, 'Generated') RETURNING bill_id
-        """), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": bals["OpeningBalance"], "pm": bals["Milk"], "pv": bals["VeenaPusa"], "td": tot_due}).scalar_one()
+        """), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": Decimal("0"), "pm": Decimal("0"), "pv": Decimal("0"), "td": tot_due}).scalar_one()
         return bid, float(tot_due), "created"
 
 @app.post("/billing/generate/{customer_id}/{year}/{month}")
@@ -980,7 +997,7 @@ def init_security_tables():
                 ON CONFLICT (username) DO NOTHING
             """), {"p1": _hash_pin("1234"), "p2": _hash_pin("1111")})
     except Exception as e:
-        print("Security init warning:", e)
+        logging.warning("Security init warning: %s", e)
 
 
 init_security_tables()
@@ -1087,7 +1104,7 @@ async def admin_security_and_audit_middleware(request: Request, call_next):
                     "ca": ist_now
                 })
         except Exception as e:
-            print("Audit log write warning:", e)
+            logging.warning("Audit log write warning: %s", e)
 
     return response
 class AdminLoginRequest(BaseModel):
