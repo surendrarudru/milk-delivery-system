@@ -993,6 +993,8 @@ def describe_audit_action(method: str, path: str, body: dict):
         return "Customer Master", f"Updated customer ID #{path.split('/')[-1]} ({body.get('CustomerName', 'Details')})"
     if path.startswith("/customers/") and method == "DELETE":
         return "Customer Master", f"Deleted customer ID #{path.split('/')[-1]}"
+    if path == "/delivery/manual-entry":
+        return "Daily Delivery", f"Manual entry for Customer ID #{body.get('CustomerID')} on {body.get('DeliveryDate')} ({body.get('MilkQuantity', 0)}L)"
     if path == "/delivery/save":
         return "Daily Delivery", f"Saved {body.get('Session')} deliveries for {body.get('DeliveryDate')} ({len(body.get('Deliveries', []))} entries)"
     if "/complete" in path:

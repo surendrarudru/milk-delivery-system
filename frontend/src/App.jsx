@@ -160,8 +160,8 @@ export default function App() {
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, marginBottom: '5px' }}>Select Role *</label>
                   <select value={loginForm.username} onChange={e => setLoginForm({ ...loginForm, username: e.target.value })} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontWeight: 700 }}>
-                    <option value="admin">Admin</option>
                     <option value="staff">User</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
                 <div>
