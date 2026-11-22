@@ -69,11 +69,11 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
   async function savePayment(e) {
     e.preventDefault()
     const check = validateWithSchema(paymentSchema, {
-      CustomerID: customer?.CustomerID || 0,
-      PaymentDate: form.PaymentDate,
-      OpeningBalanceAmount: form.OpeningBalanceAmount || 0,
-      MilkAmount: form.MilkAmount || 0,
-      VeenaPusaAmount: form.VeenaPusaAmount || 0,
+      CustomerID: Number(custId || 0),
+      PaymentDate: form.date,
+      OpeningBalanceAmount: Number(form.opening || 0),
+      MilkAmount: Number(form.milk || 0),
+      VeenaPusaAmount: Number(form.butter || 0),
     })
     if (!check.success) {
       setPaymentError(check.firstError)

@@ -121,7 +121,8 @@ function CustomerMaster() {
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setShowModal(false)
+        setShowForm(false)
+        setShowProfile(false)
         setSelectedCustomer(null)
       }
     }
@@ -384,7 +385,7 @@ function CustomerMaster() {
     }
 
     return matchesSearch && matchesFilter
-  }), [customers, search, filter, shiftFilter])
+  }), [customers, search, filter, cardBalances])
 
   // CUSTOMER COUNTS
   const activeCount = customers.filter(

@@ -42,14 +42,15 @@ const CARDS = [
 const TAB_TO_PATH = {
   dashboard: '/',
   customers: '/customers',
-  'morning-route': '/morning-route',
-  'evening-route': '/evening-route',
-  delivery: '/delivery',
-  billing: '/billing',
+  morningRoute: '/morning-route',
+  eveningRoute: '/evening-route',
+  dailyDelivery: '/delivery',
+  monthlyBills: '/billing',
   payments: '/payments',
   reports: '/reports',
-  ads: '/ads',
-  audit: '/audit',
+  marketingAds: '/ads',
+  auditLog: '/audit',
+  coOwnerView: '/co-owner',
 }
 const PATH_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_PATH).map(([k, v]) => [v, k]))
 

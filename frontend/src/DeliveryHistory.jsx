@@ -85,9 +85,13 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
   const eveningRecord = getSessionRecord('Evening')
   const formatDate = ds => (ds ? ds.split('-').reverse().join('-') : '')
 
-  function startEdit(record) {
-    if (!record?.DeliveryDetailID) return alert('Delivery record not found.')
-    if (record.SessionStatus !== 'Completed') return alert('This session is Open. Please edit it from Daily Delivery Entry.')
+  function startEdit(record, sessionName = 'Evening') {
+    if (!record?.DeliveryDetailID) {
+      setEditingRecord({ isNew: true, Session: sessionName })
+      setEditForm({ DeliveryStatus: 'Delivered', MilkQuantity: customer?.DefaultMilkQuantity ?? 1, VeenaPusaDelivered: false, VeenaPusaQuantity: 0, Notes: '' })
+      setCorrectionMessage('')
+      return
+    }
     setEditingRecord(record)
     setEditForm({ DeliveryStatus: record.DeliveryStatus || 'Delivered', MilkQuantity: record.MilkQuantity ?? 0, VeenaPusaDelivered: Boolean(record.VeenaPusaDelivered), VeenaPusaQuantity: record.VeenaPusaQuantity ?? 0, Notes: record.Notes || '' })
     setCorrectionMessage('')
@@ -240,8 +244,16 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div className="dh-weekday" key={day}>{day}</div>)}
           {loading ? <div className="dh-loading">Loading calendar...</div> : calendarDays.map((item, idx) =>
             !item ? <div className="dh-empty-day" key={'empty-' + idx} /> : (
-              <button type="button" key={item.dateString} className={'dh-calendar-day dh-' + String(item.color).toLowerCase() + (selectedDate === item.dateString ? ' dh-selected' : '')} onClick={() => setSelectedDate(item.dateString)}>
-                {item.day}
+              <button
+                type="button"
+                key={item.dateString}
+                className={'dh-calendar-day dh-' + String(item.color).toLowerCase() + (selectedDate === item.dateString ? ' dh-selected' : '')}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '52px', padding: '4px 2px', lineHeight: 1.15 }}
+                onClick={() => setSelectedDate(item.dateString)}
+              >
+                <span style={{ fontSize: '15px', fontWeight: 800 }}>{item.day}</span>
+                {item.qty > 0 && <span style={{ fontSize: '11px', fontWeight: 800, color: '#064e3b', marginTop: '2px' }}>{item.qty}L</span>}
+                {item.color === 'Red' && item.qty === 0 && <span style={{ fontSize: '10px', fontWeight: 800, color: '#991b1b', marginTop: '2px' }}>?</span>}
               </button>
             )
           )}
