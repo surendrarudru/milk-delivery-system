@@ -498,6 +498,37 @@ def add_customer_opening_balance(customer_id: int, request: OpeningBalanceReques
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class VeenaPusaAddonRequest(BaseModel):
+    CustomerID: int
+    EntryDate: date
+    QuantityKg: Decimal = Decimal("0")
+    Amount: Decimal
+    Notes: Optional[str] = None
+
+
+@app.post("/addons/veenapusa")
+def add_veenapusa_addon_bill(req: VeenaPusaAddonRequest):
+    if req.Amount <= 0:
+        raise HTTPException(status_code=400, detail="Veena Pusa bill amount must be greater than 0")
+    try:
+        with engine.begin() as conn:
+            cust = conn.execute(text("SELECT customer_id FROM customers WHERE customer_id = :cid"), {"cid": req.CustomerID}).fetchone()
+            if not cust:
+                raise HTTPException(status_code=404, detail="Customer not found")
+            qty_txt = f"{req.QuantityKg} KG - " if req.QuantityKg > 0 else ""
+            desc = f"Veena Pusa Add-on ({qty_txt}{req.Notes})" if req.Notes else f"Veena Pusa Add-on ({qty_txt.rstrip(' - ') or 'Bill'})"
+            lid = conn.execute(text("""
+                INSERT INTO ledger_entries (customer_id, entry_date, category, entry_type, amount, reference_id, description)
+                VALUES (:cid, :ed, 'VeenaPusa', 'DEBIT', :amt, NULL, :desc)
+                RETURNING ledger_id
+            """), {"cid": req.CustomerID, "ed": req.EntryDate, "amt": req.Amount, "desc": desc}).scalar_one()
+        return {"message": "Veena Pusa add-on bill added!", "LedgerID": lid}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/payments")
 def add_payment(payment: PaymentCreate):
     tot = Decimal(str(payment.TotalAmount))
@@ -1019,6 +1050,8 @@ def describe_audit_action(method: str, path: str, body: dict):
         return "Daily Delivery", f"Completed & locked {parts[-2]} session for {parts[-3]}"
     if path.startswith("/delivery/correction/"):
         return "Delivery Correction", f"Corrected delivery record #{path.split('/')[-1]} -> {body.get('DeliveryStatus')} ({body.get('MilkQuantity', 0)}L)"
+    if path == "/addons/veenapusa":
+        return "Add-on Bill", f"Added Veena Pusa bill ₹{body.get('Amount', 0)} for Customer ID #{body.get('CustomerID')}"
     if path == "/payments":
         return "Payments", f"Recorded ₹{body.get('TotalAmount', 0)} ({body.get('PaymentMode', 'Cash')}) for Customer ID #{body.get('CustomerID')}"
     if path.startswith("/billing/generate-all/"):
@@ -1063,7 +1096,7 @@ async def admin_security_and_audit_middleware(request: Request, call_next):
         allowed_user_writes = (
             path == "/delivery/save"
             or path.endswith("/complete")
-            or path == "/payments"
+            or path == "/payments" or path == "/addons/veenapusa"
             or path == "/customers"
         )
         if not allowed_user_writes:
