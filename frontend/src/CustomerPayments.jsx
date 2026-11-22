@@ -132,15 +132,6 @@ export default function CustomerPayments({ customer = null, onPaymentSaved = nul
           </div>
         </form>
       </div>
-      {!customer && (
-        <div style={{ background: '#fff', padding: '22px', borderRadius: '14px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
-          <h3 style={{ marginTop: 0 }}>Pending Customer Balances ({dueRows.length})</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead><tr style={{ borderBottom: '2px solid #e2e8f0' }}><th style={{ padding: '8px' }}>Customer</th><th style={{ padding: '8px' }}>Opening</th><th style={{ padding: '8px' }}>Milk</th><th style={{ padding: '8px' }}>Veena Pusa</th><th style={{ padding: '8px' }}>Total Due</th><th style={{ padding: '8px' }}>Action</th></tr></thead>
-            <tbody>{dueRows.map(r => <tr key={r.CustomerID} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={{ padding: '8px' }}><strong>{r.CustomerName}</strong> ({r.CustomerCode})</td><td style={{ padding: '8px' }}>₹{r.opening}</td><td style={{ padding: '8px' }}>₹{r.milk}</td><td style={{ padding: '8px' }}>₹{r.butter}</td><td style={{ padding: '8px', color: '#b45309', fontWeight: 700 }}>₹{r.total}</td><td style={{ padding: '8px' }}><button type="button" onClick={() => pickCust(r.CustomerID)} style={{ padding: '5px 12px', background: '#0f4c2e', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Select</button></td></tr>)}</tbody>
-          </table>
-        </div>
-      )}
     </div>
   )
 }
