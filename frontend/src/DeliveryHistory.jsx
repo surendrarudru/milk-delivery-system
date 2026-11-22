@@ -100,28 +100,42 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
 
   async function saveCorrection(e) {
     e.preventDefault()
-    if (!editingRecord?.DeliveryDetailID) return
-    if (!window.confirm('Are you sure you want to correct this delivery record?')) return
+    if (!editingRecord) return
+    if (!window.confirm(editingRecord.isNew ? 'Save this new delivery record?' : 'Are you sure you want to correct this delivery record?')) return
     setSavingCorrection(true); setCorrectionMessage('')
     try {
       const payload = {
+        CustomerID: customer.CustomerID,
+        DeliveryDate: selectedDate,
+        Session: editingRecord.Session,
         DeliveryStatus: editForm.DeliveryStatus,
         MilkQuantity: editForm.DeliveryStatus === 'Undelivered' ? 0 : Number(editForm.MilkQuantity),
         VeenaPusaDelivered: editForm.DeliveryStatus === 'Undelivered' ? false : Boolean(editForm.VeenaPusaDelivered),
         VeenaPusaQuantity: editForm.DeliveryStatus === 'Undelivered' || !editForm.VeenaPusaDelivered ? 0 : Number(editForm.VeenaPusaQuantity),
-        Notes: editForm.Notes, ChangedBy: 'System'
+        Notes: editForm.Notes,
+        ChangedBy: 'Admin'
       }
-      const res = await fetch(API_URL + '/delivery/correction/' + editingRecord.DeliveryDetailID, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const url = editingRecord.isNew ? (API_URL + '/delivery/manual-entry') : (API_URL + '/delivery/correction/' + editingRecord.DeliveryDetailID)
+      const res = await fetch(url, {
+        method: editingRecord.isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
       const result = await res.json()
-      if (!res.ok) throw new Error(result.detail || 'Delivery correction failed')
-      setEditingRecord(null); setCorrectionMessage('Delivery record corrected successfully.')
+      if (!res.ok) throw new Error(result.detail || 'Delivery save failed')
+      setEditingRecord(null)
+      setCorrectionMessage(editingRecord.isNew ? 'Delivery entry added successfully.' : 'Delivery record corrected successfully.')
       const [hRes, cRes] = await Promise.all([
         fetch(API_URL + '/customers/' + customer.CustomerID + '/delivery-history/' + selectedDate),
         fetch(API_URL + '/customers/' + customer.CustomerID + '/delivery-calendar/' + year + '/' + month)
       ])
       if (hRes.ok) setHistoryData(await hRes.json())
       if (cRes.ok) setCalendarData(await cRes.json())
-    } catch (err) { setCorrectionMessage(err.message) } finally { setSavingCorrection(false) }
+    } catch (err) {
+      setCorrectionMessage(err.message)
+    } finally {
+      setSavingCorrection(false)
+    }
   }
   function renderSession(title, record, sessionName) {
     return (
@@ -174,7 +188,7 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
       {editingRecord && (
         <div className="dh-edit-overlay">
           <form className="dh-edit-form" onSubmit={saveCorrection}>
-            <h3>Edit Delivery — {editingRecord.Session}</h3>
+            <h3>{editingRecord.isNew ? "Add Delivery" : "Edit Delivery"} — {editingRecord.Session}</h3>
             <label>Delivery Status</label>
             <select name="DeliveryStatus" value={editForm.DeliveryStatus} onChange={handleEditChange}>
               <option value="Delivered">Delivered</option>
