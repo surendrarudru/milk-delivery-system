@@ -5,24 +5,26 @@ const isLocal = window.location.hostname === 'localhost' || window.location.host
 const API_URL = import.meta.env.VITE_API_URL || (isLocal ? 'http://' + window.location.hostname + ':8000' : 'https://' + 'milk-delivery-api-bn26' + '.onrender.com')
 
 export function parseLedgerBalances(d) {
-  const s = d?.Summary || d?.Balances || d || {}
-  const rows = Array.isArray(d) ? d : (d?.Entries || d?.LedgerEntries || d?.Transactions || d?.Ledger || [])
+  if (d?.AccountBalances) {
+    const ab = d.AccountBalances
+    const opening = Number(ab.OpeningBalance ?? 0)
+    const milk = Number(ab.Milk ?? 0)
+    const butter = Number(ab.VeenaPusa ?? 0)
+    return { opening, milk, butter, total: opening + milk + butter }
+  }
+  const rows = Array.isArray(d) ? d : (d?.Transactions || d?.Entries || d?.LedgerEntries || [])
   if (Array.isArray(rows) && rows.length > 0) {
     const latest = {}
     rows.forEach(r => {
-      const acc = String(r.Account || r.Category || 'Opening').toLowerCase()
-      latest[acc] = Number(r.AccountBalance ?? r.RunningBalance ?? r.Balance ?? 0)
+      const acc = String(r.AccountType || r.Account || r.Category || 'Opening').toLowerCase()
+      latest[acc] = Number(r.Balance ?? r.AccountBalance ?? r.RunningBalance ?? 0)
     })
-    const opening = latest['opening balance'] ?? latest['opening'] ?? 0
-    const milk = latest['milk account'] ?? latest['milk'] ?? 0
-    const butter = latest['veena pusa account'] ?? latest['veena pusa'] ?? latest['veenapusa'] ?? 0
+    const opening = latest['openingbalance'] ?? latest['opening balance'] ?? latest['opening'] ?? 0
+    const milk = latest['milk'] ?? latest['milk account'] ?? 0
+    const butter = latest['veenapusa'] ?? latest['veena pusa'] ?? latest['veena pusa account'] ?? 0
     return { opening, milk, butter, total: opening + milk + butter }
   }
-  const opening = Number(s.OpeningBalance ?? s.OpeningDue ?? 0)
-  const milk = Number(s.MilkBalance ?? s.MilkDue ?? 0)
-  const butter = Number(s.VeenaPusaBalance ?? s.VeenaPusaDue ?? 0)
-  const total = Number(s.TotalOutstanding ?? s.TotalBalance ?? s.ClosingBalance ?? s.NetBalance ?? opening + milk + butter)
-  return { opening, milk, butter, total }
+  return { opening: 0, milk: 0, butter: 0, total: 0 }
 }
 
 export default function CustomerPayments({ customer = null, onPaymentSaved = null }) {
