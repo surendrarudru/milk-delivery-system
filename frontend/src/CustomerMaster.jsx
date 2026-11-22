@@ -17,7 +17,7 @@ function CustomerMaster() {
   const [editingCustomer, setEditingCustomer] = useState(null)
 
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('All')
+  const [filter, setFilter] = useState('Active')
   const [activeTab, setActiveTab] = useState('details')
 
   const [loading, setLoading] = useState(false)
