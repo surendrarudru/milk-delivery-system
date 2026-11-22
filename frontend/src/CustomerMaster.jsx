@@ -452,7 +452,7 @@ function CustomerMaster() {
   function renderCustomerCard(customer) {
     return (
       <div
-        className="customer-card"
+        className={`customer-card ${!customer.IsActive ? "inactive-card" : ""}`}
         key={customer.CustomerID}
         onClick={() => openProfile(customer)}
       >

@@ -92,3 +92,5 @@
 .ledger-table th { background: #f1f5f9; color: #334155; font-weight: 700; padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid #cbd5e1; }
 .ledger-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
 .ledger-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; white-space: nowrap; display: inline-block; }
+
+.customer-card.inactive-card { opacity: 0.58; background: #e2e8f0; border-color: #94a3b8; filter: grayscale(0.85); }
