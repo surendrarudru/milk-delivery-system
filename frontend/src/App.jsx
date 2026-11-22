@@ -1,3 +1,4 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import CustomerMaster from './CustomerMaster'
 import RouteManager from './RouteManager'
@@ -37,6 +38,20 @@ const CARDS = [
   ['auditLog', '🛡️', 'Security Audit Log', 'Track who updated what & when', ['Admin']]
 ]
 
+const TAB_TO_PATH = {
+  dashboard: '/',
+  customers: '/customers',
+  'morning-route': '/morning-route',
+  'evening-route': '/evening-route',
+  delivery: '/delivery',
+  billing: '/billing',
+  payments: '/payments',
+  reports: '/reports',
+  ads: '/ads',
+  audit: '/audit',
+}
+const PATH_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_PATH).map(([k, v]) => [v, k]))
+
 export default function App() {
   const [adminAuth, setAdminAuth] = useState(() => {
     try { return JSON.parse(localStorage.getItem('mm_admin_auth') || 'null') } catch { return null }
@@ -46,7 +61,13 @@ export default function App() {
   const [loginError, setLoginError] = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
 
-  const [tab, setTab] = useState('dashboard')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const tab = PATH_TO_TAB[location.pathname] || 'dashboard'
+  const setTab = (nextTab) => {
+    const targetPath = TAB_TO_PATH[nextTab] || '/'
+    if (location.pathname !== targetPath) navigate(targetPath)
+  }
   const [drawer, setDrawer] = useState(false)
   const [online, setOnline] = useState(true)
   const [stats, setStats] = useState({ total: 0, morning: 0, evening: 0, due: 0, pendingCount: 0 })
