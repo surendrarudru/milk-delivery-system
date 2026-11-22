@@ -68,7 +68,10 @@ export default function DeliveryHistory({ customer, initialYear = null, initialM
   for (let day = 1; day <= totalDays; day++) {
     const dateString = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0')
     const dayData = calendarData?.Days?.find(item => item.Date === dateString)
-    calendarDays.push({ day, dateString, color: dayData?.Color || 'Grey' })
+    const mQty = dayData?.Morning?.DeliveryStatus === 'Delivered' ? Number(dayData.Morning.MilkQuantity || 0) : 0
+    const eQty = dayData?.Evening?.DeliveryStatus === 'Delivered' ? Number(dayData.Evening.MilkQuantity || 0) : 0
+    const qty = Math.round((mQty + eQty) * 100) / 100
+    calendarDays.push({ day, dateString, color: dayData?.Color || 'Grey', qty })
   }
 
   const selectedDayData = calendarData?.Days?.find(item => item.Date === selectedDate)
