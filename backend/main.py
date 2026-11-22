@@ -672,22 +672,25 @@ def _upsert_customer_bill(conn, customer_id: int, year: int, month: int):
     ma, va = Decimal(str(dt.ma)), Decimal(str(dt.va))
 
     ex = conn.execute(text("""
-        SELECT bill_id, bill_status, previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance
+        SELECT bill_id, bill_status
         FROM monthly_bills WHERE customer_id = :cid AND bill_year = :y AND bill_month = :m
     """), {"cid": customer_id, "y": year, "m": month}).fetchone()
 
+    if ex and ex.bill_status == "Finalized":
+        _sync_bill_to_ledger(conn, ex.bill_id, customer_id, year, month, ma, va)
+        bals = get_customer_ledger_balances(conn, customer_id)
+        po = bals["OpeningBalance"]
+        pm = bals["Milk"] - ma
+        pv = bals["VeenaPusa"] - va
+    else:
+        bals = get_customer_ledger_balances(conn, customer_id)
+        po = bals["OpeningBalance"]
+        pm = bals["Milk"]
+        pv = bals["VeenaPusa"]
+
+    tot_due = max(Decimal("0"), po) + max(Decimal("0"), ma + pm) + max(Decimal("0"), va + pv)
+
     if ex:
-        if ex.bill_status == "Finalized":
-            _sync_bill_to_ledger(conn, ex.bill_id, customer_id, year, month, ma, va)
-            po = Decimal(str(ex.previous_opening_balance or 0))
-            pm = Decimal(str(ex.previous_milk_balance or 0))
-            pv = Decimal(str(ex.previous_venna_pusa_balance or 0))
-        else:
-            # Use the bill's own stored previous values (more accurate than full ledger)
-            po = Decimal(str(ex.previous_opening_balance or 0))
-            pm = Decimal(str(ex.previous_milk_balance or 0))
-            pv = Decimal(str(ex.previous_venna_pusa_balance or 0))
-        tot_due = max(Decimal("0"), po) + max(Decimal("0"), ma + pm) + max(Decimal("0"), va + pv)
         conn.execute(text("""
             UPDATE monthly_bills
             SET milk_total = :ma, venna_pusa_total = :va,
@@ -697,15 +700,13 @@ def _upsert_customer_bill(conn, customer_id: int, year: int, month: int):
         """), {"ma": ma, "va": va, "po": po, "pm": pm, "pv": pv, "td": tot_due, "bid": ex.bill_id})
         return ex.bill_id, float(tot_due), "updated"
     else:
-        # New bill: initialize previous balances to 0, total due is just current month's amounts
-        tot_due = max(Decimal("0"), ma) + max(Decimal("0"), va)
         bid = conn.execute(text("""
             INSERT INTO monthly_bills (
                 customer_id, bill_year, bill_month, milk_total, venna_pusa_total,
                 previous_opening_balance, previous_milk_balance, previous_venna_pusa_balance,
                 total_amount_due, bill_status
             ) VALUES (:cid, :y, :m, :ma, :va, :po, :pm, :pv, :td, 'Generated') RETURNING bill_id
-        """), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": Decimal("0"), "pm": Decimal("0"), "pv": Decimal("0"), "td": tot_due}).scalar_one()
+        """), {"cid": customer_id, "y": year, "m": month, "ma": ma, "va": va, "po": po, "pm": pm, "pv": pv, "td": tot_due}).scalar_one()
         return bid, float(tot_due), "created"
 
 @app.post("/billing/generate/{customer_id}/{year}/{month}")
